@@ -25,14 +25,15 @@ import pickle
 import mxnet as mx
 import numpy as np
 from mxnet.gluon.data import Dataset
-from mxnet.gluon.data.vision import ImageRecordDataset
+from mxnet.gluon.data import RecordFileDataset
+from mxnet import image, recordio
 
 __all__ = ["FRValDataset",
            "FRTrainRecordDataset",
            ]
 
 
-class FRTrainRecordDataset(ImageRecordDataset):
+class FRTrainRecordDataset(RecordFileDataset):
     """A dataset wrapping over a rec serialized file provided by InsightFace Repo.
 
     Parameters
@@ -45,13 +46,32 @@ class FRTrainRecordDataset(ImageRecordDataset):
         transform=lambda data, label: (data.astype(np.float32)/255, label)
     """
 
-    def __init__(self, name, root=os.path.expanduser('~/.mxnet/datasets/face'), transform=None):
-        super().__init__(os.path.join(root, name, "train.rec"), transform=transform)
+    def __init__(self, name, root=os.path.expanduser('~/.mxnet/datasets/face'), flag=1, transform=None):
+        super().__init__(os.path.join(root, name, "train.rec"))
         prop = open(os.path.join(root, name, "property"), "r").read().strip().split(',')
+        self._flag = flag
+        self._transform = transform
 
         assert len(prop) == 3
         self.num_classes = int(prop[0])
         self.image_size = [int(prop[1]), int(prop[2])]
+
+    def __getitem__(self, idx):
+        while True:
+            record = super().__getitem__(idx)
+            header, img = recordio.unpack(record)
+            if _check_valid_image(img):
+                decoded_img = image.imdecode(img, self._flag)
+            else:
+                idx = np.random.randint(low=0, high=len(self))
+                continue
+            if self._transform is not None:
+                return self._transform(decoded_img, header.label)
+            return decoded_img, header.label
+
+
+def _check_valid_image(s):
+    return False if len(s) == 0 else True
 
 
 class FRValDataset(Dataset):
