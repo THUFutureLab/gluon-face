@@ -115,8 +115,7 @@ class AttentionNetFace(nn.HybridBlock):
             self.features.add(nn.Activation('relu'))
 
             # 56x56
-            self.features.add(nn.MaxPool2D(3, 2, 1))
-            self.features.add(BottleneckV2(256, 1, True, 64))
+            self.features.add(BottleneckV2(256, 2, True, 64))
             for _ in range(modules[0]):
                 self.features.add(AttentionBlock(256, 56, 1, p, t, r))
 
@@ -131,7 +130,7 @@ class AttentionNetFace(nn.HybridBlock):
                 self.features.add(AttentionBlock(1024, 14, 3, p, t, r))
 
             # 8x8
-            self.features.add(BottleneckV2(2048, 2, True, 1028),
+            self.features.add(BottleneckV2(2048, 2, True, 1024),
                               BottleneckV2(2048, 1),
                               BottleneckV2(2048, 1))
 
