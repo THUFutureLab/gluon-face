@@ -26,7 +26,7 @@ from mxnet import sym, nd
 
 
 class NormDense(HybridBlock):
-    def __init__(self, classes, s,
+    def __init__(self, classes, s=1,
                  dtype='float32', weight_initializer=None,
                  weight_norm=True, feature_norm=True,
                  in_units=0, **kwargs):

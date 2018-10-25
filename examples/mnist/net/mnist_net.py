@@ -19,53 +19,29 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
-""""""
-
-import os
-import time
-import mxnet as mx
-
-from mxnet import nd, gluon, metric as mtc, autograd as ag
+"""MNIST Network"""
 from mxnet.gluon import nn
-from mxnet.gluon.data.vision import MNIST
 from gluonfr.nn.basic_blocks import NormDense
-from gluonfr.loss import ArcLoss
-from gluonfr.model_zoo.residual_attention import get_attention_face
-import numpy as np
-
-from mxnet.gluon.data.vision import transforms
-
-transform_test = transforms.Compose([
-    transforms.ToTensor(),
-    transforms.Normalize((0.4914, 0.4822, 0.4465),
-                         (0.2023, 0.1994, 0.2010))
-])
-
-transform_train = transforms.Compose([
-    transforms.RandomBrightness(0.3),
-    transforms.RandomFlipLeftRight(),
-    transforms.ToTensor(),
-    transforms.Normalize((0.4914, 0.4822, 0.4465),
-                         (0.2023, 0.1994, 0.2010))
-])
 
 
-class AttentionFace(nn.HybridBlock):
-    def __init__(self, classes, is_test=False, s=30, **kwargs):
+class MnistNet(nn.HybridBlock):
+    def __init__(self, weight_norm=True, feature_norm=True, embedding_size=2, s=1, **kwargs):
         super().__init__(**kwargs)
-        self.feature = get_attention_face(512, 56)
-        if is_test:
-            self.output = None
-        else:
-            self.output = NormDense(classes=classes, s=s)
-
-        self._test = is_test
+        self.feature = nn.HybridSequential()
+        self.feature.add(
+            nn.Conv2D(32, 5, activation="relu"),
+            nn.MaxPool2D(2, 2),
+            nn.Conv2D(64, 5, activation="relu"),
+            nn.MaxPool2D(2, 2),
+            nn.Flatten(),
+            nn.Dense(128, activation="relu"),
+            nn.Dense(256, activation="relu"),
+            nn.Dense(embedding_size, use_bias=False)
+        )
+        self.output = NormDense(classes=10, s=s, weight_norm=weight_norm,
+                                feature_norm=feature_norm, in_units=embedding_size)
 
     def hybrid_forward(self, F, x, *args, **kwargs):
         embedding = self.feature(x)
-        if self.output is None:
-            return embedding
-        else:
-            return self.output(embedding)
-
-
+        output = self.output(embedding)
+        return embedding, output
