@@ -21,13 +21,12 @@
 # SOFTWARE.
 """utils of mnist"""
 import matplotlib
+matplotlib.use('Agg')
 from mxnet import nd
 import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
 import matplotlib.patheffects as PathEffects
-
-matplotlib.use('Agg')
 
 
 def transform_train(data, label):
