@@ -20,9 +20,10 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 """"""
-from mxnet.gluon import nn, HybridBlock
+from mxnet.gluon import nn
 
 __all__ = ["MobileFaceNet",
+           "get_mobile_facenet",
            ]
 
 
@@ -92,3 +93,7 @@ class MobileFaceNet(nn.HybridBlock):
         x = self.feature(x)
         x = self.output(x)
         return x
+
+
+def get_mobile_facenet(classes, **kwargs):
+    return MobileFaceNet(classes, **kwargs)
