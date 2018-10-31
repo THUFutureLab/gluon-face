@@ -19,7 +19,7 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
-"""GluonCV: a deep learning vision toolkit powered by Gluon."""
+"""GluonFR: a deep learning face recognition toolkit powered by Gluon."""
 
 # mxnet version check
 mx_version = '1.3.0'

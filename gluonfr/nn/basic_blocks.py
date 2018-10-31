@@ -19,19 +19,15 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
-""""""
-import numpy as np
-from mxnet.gluon.nn import HybridBlock, Dense
-from mxnet import sym, nd
+"""Basic Blocks used in GluonFR."""
+
+from mxnet.gluon.nn import HybridBlock
 
 
 class NormDense(HybridBlock):
-    def __init__(self, classes, s=1,
-                 dtype='float32', weight_initializer=None,
-                 weight_norm=True, feature_norm=True,
-                 in_units=0, **kwargs):
+    def __init__(self, classes, weight_norm=False, feature_norm=False,
+                 dtype='float32', weight_initializer=None, in_units=0, **kwargs):
         super().__init__(**kwargs)
-        self.margin_s = s
         self._weight_norm = weight_norm
         self._feature_norm = feature_norm
 
@@ -50,10 +46,9 @@ class NormDense(HybridBlock):
         if self._weight_norm:
             weight = F.L2Normalization(weight, mode='instance')
         if self._feature_norm:
-            x = F.L2Normalization(x, mode='instance', name='fc1n') * self.margin_s
-        fc7 = F.FullyConnected(data=x, weight=weight, no_bias=True,
-                               num_hidden=self._classes, name='fc7')
-        return fc7
+            x = F.L2Normalization(x, mode='instance', name='fc1n')
+        return F.FullyConnected(data=x, weight=weight, no_bias=True,
+                                num_hidden=self._classes, name='fc7')
 
     def __repr__(self):
         s = '{name}({layout})'
