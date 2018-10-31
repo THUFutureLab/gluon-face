@@ -86,7 +86,6 @@ class ArcLoss(Loss):
     """
 
     def __init__(self, s, m, classes, easy_margin=False, margin_verbose=False,
-                 # in_units=0, weight_initializer=None, dtype='float32',
                  axis=-1, sparse_label=True,
                  weight=None, batch_axis=0, **kwargs):
         super().__init__(weight, batch_axis, **kwargs)
@@ -106,35 +105,33 @@ class ArcLoss(Loss):
         self._axis = axis
         self._sparse_label = sparse_label
 
-    def hybrid_forward(self, F, x, gt_label, sample_weight=None, *args, **kwargs):
+    def hybrid_forward(self, F, x, label, sample_weight=None, *args, **kwargs):
+        # nd.where()
+        cos_theta = F.pick(x, label, axis=1)  # 得到fc7中gt_label位置的值。(B,1)或者(B)，即当前batch中yi处的scos(theta)
 
-        zy = F.pick(x, gt_label, axis=1)  # 得到fc7中gt_label位置的值。(B,1)或者(B)，即当前batch中yi处的scos(theta)
-        cos_theta = zy / self.margin_s
-
-        if self.easy_margin:
-            cond = F.Activation(data=cos_theta, act_type='relu')
-
-        else:
-            cond_v = cos_theta - self.threshold
-            cond = F.Activation(data=cond_v, act_type='relu')
+        #
+        # if self.easy_margin:
+        #     cond = F.Activation(data=cos_theta, act_type='relu')
+        #
+        # else:
+        #     cond_v = cos_theta - self.threshold
+        #     cond = F.Activation(data=cond_v, act_type='relu')
 
         sin_theta = F.sqrt(1.0 - cos_theta * cos_theta)
-        new_zy = cos_theta * self.cos_m
-        b = sin_theta * self.sin_m
-        new_zy = new_zy - b
-        new_zy = new_zy * self.margin_s
-        if self.easy_margin:
-            zy_keep = zy
-        else:
-            zy_keep = zy - self.margin_s * self.mm
-        new_zy = F.where(cond, new_zy, zy_keep)
 
-        diff = new_zy - zy
-        diff = F.expand_dims(diff, 1)
-        gt_one_hot = F.one_hot(gt_label, depth=self._classes, on_value=1.0, off_value=0.0)
+        cos_theta_add_m = cos_theta * self.cos_m - sin_theta * self.sin_m
+        # new_zy = new_zy * self.margin_s
+        # if self.easy_margin:
+        #     zy_keep = zy
+        # else:
+        #     zy_keep = zy - self.margin_s * self.mm
+        # new_zy = F.where(cond, new_zy, zy_keep)
+
+        diff = F.expand_dims(cos_theta_add_m - cos_theta, 1)
+        gt_one_hot = F.one_hot(label, depth=self._classes, on_value=1.0, off_value=0.0)
         body = F.broadcast_mul(gt_one_hot, diff)
-        fc7 = x + body
-        return _softmax_loss(F, fc7, gt_label, self._weight, sample_weight,
+        fc7 = (x + body) * self.margin_s
+        return _softmax_loss(F, fc7, label, self._weight, sample_weight,
                              self._sparse_label, self._axis, self._batch_axis)
 
 
@@ -258,8 +255,13 @@ class RingLoss(Loss):
         loss_r = F.mean(loss_r, keepdims=True) * 0.5
 
         # Softmax
-        loss_sm = _softmax_loss(F, pred, label, self._weight, sample_weight,
-                                self._sparse_label, self._axis, self._batch_axis)
+        pred = F.log_softmax(pred, self._axis)
+        if self._sparse_label:
+            loss_sm = -F.pick(pred, label, axis=self._axis, keepdims=True)
+        else:
+            label = _reshape_like(F, label, pred)
+            loss_sm = -F.sum(pred * label, axis=self._axis, keepdims=True)
+        loss_sm = F.mean(loss_sm, axis=self._batch_axis, exclude=True)
 
         loss = F.broadcast_add(loss_sm, self._lamda * loss_r)
         return _apply_weighting(F, loss, self._weight, sample_weight)
