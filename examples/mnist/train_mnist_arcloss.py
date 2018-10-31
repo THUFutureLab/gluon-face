@@ -86,7 +86,7 @@ def train():
     val_set = MNIST(train=False, transform=transform_val)
     val_data = gluon.data.DataLoader(val_set, batch_size, shuffle=False, num_workers=4)
 
-    net = MnistNet(embedding_size=2, feature_norm=True, weight_norm=True, s=margin_s)
+    net = MnistNet(embedding_size=2, feature_norm=True, weight_norm=True)
     net.initialize(init=mx.init.MSRAPrelu(), ctx=ctx)
     # net.load_parameters("./pretrained_mnist.params", ctx=ctx)
     net.hybridize()

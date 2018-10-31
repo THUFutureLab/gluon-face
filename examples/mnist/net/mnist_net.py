@@ -25,7 +25,7 @@ from gluonfr.nn.basic_blocks import NormDense
 
 
 class MnistNet(nn.HybridBlock):
-    def __init__(self, weight_norm=True, feature_norm=True, embedding_size=2, s=1, **kwargs):
+    def __init__(self, weight_norm=True, feature_norm=True, embedding_size=2, **kwargs):
         super().__init__(**kwargs)
         self.feature = nn.HybridSequential()
         self.feature.add(
@@ -38,7 +38,7 @@ class MnistNet(nn.HybridBlock):
             nn.Dense(256, activation="relu"),
             nn.Dense(embedding_size, use_bias=False)
         )
-        self.output = NormDense(classes=10, s=s, weight_norm=weight_norm,
+        self.output = NormDense(classes=10, weight_norm=weight_norm,
                                 feature_norm=feature_norm, in_units=embedding_size)
 
     def hybrid_forward(self, F, x, *args, **kwargs):

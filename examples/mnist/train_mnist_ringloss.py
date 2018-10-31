@@ -69,7 +69,9 @@ def validate(net, val_data, ctx, loss, plot=False):
 def train():
     epochs = 100
 
-    lr = 0.01
+    lr = 0.1
+    lamda = 0.1
+
     lr_steps = [40, 70, np.inf]
     momentum = 0.9
     wd = 5e-4
@@ -78,8 +80,6 @@ def train():
 
     ctx = [mx.gpu(i) for i in range(2)]
     batch_size = 256
-
-    lamda = 1
 
     train_set = MNIST(train=True, transform=transform_train)
     train_data = gluon.data.DataLoader(train_set, batch_size, True, num_workers=4, last_batch='discard')
@@ -108,15 +108,13 @@ def train():
         if epoch == lr_steps[lr_counter]:
             trainer.set_learning_rate(trainer.learning_rate * 0.1)
             lr_counter += 1
-        if (epoch % plot_period) == 0:
-            plot = True
-        else:
-            plot = False
+
+        plot = True if (epoch % plot_period) == 0 else False
+
         train_loss = 0
         metric.reset()
         tic = time.time()
-        ebs = []
-        lbs = []
+        ebs, lbs = [], []
         print("Radius", loss.R.data(ctx=mx.gpu(0)).asscalar())
 
         for batch in train_data:
@@ -131,6 +129,7 @@ def train():
 
             for l in losses:
                 ag.backward(l)
+
             if plot:
                 for es, ls in zip(embedds, labels):
                     assert len(es) == len(ls)
@@ -149,8 +148,7 @@ def train():
         val_acc, val_loss, val_ebs, val_lbs = validate(net, val_data, ctx, loss, plot)
 
         if plot:
-            ebs = np.vstack(ebs)
-            lbs = np.hstack(lbs)
+            ebs, lbs = np.vstack(ebs), np.hstack(lbs)
 
             plot_result(ebs, lbs, os.path.join("../resources", "ringloss-train-epoch{}.png".format(epoch)))
             plot_result(val_ebs, val_lbs, os.path.join("../resources", "ringloss-val-epoch{}.png".format(epoch)))
