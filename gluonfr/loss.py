@@ -21,7 +21,7 @@ import numpy as np
 from mxnet import nd, init
 from mxnet.gluon.loss import Loss
 
-__all__ = ["ArcLoss",  "TripletLoss", "RingLoss"]
+__all__ = ["ArcLoss", "TripletLoss", "RingLoss"]
 numeric_types = (float, int, np.generic)
 
 
@@ -238,13 +238,12 @@ class RingLoss(Loss):
     """
 
     def __init__(self, lamda, weight=None, batch_axis=0,
-                 axis=-1, sparse_label=True, from_logits=False,
+                 axis=-1, sparse_label=True,
                  weight_initializer=init.Constant(1.0), dtype='float32', **kwargs):
         super().__init__(weight=weight, batch_axis=batch_axis, **kwargs)
         # Softmax
         self._axis = axis
         self._sparse_label = sparse_label
-        self._from_logits = from_logits
 
         # RingLoss
         self._lamda = lamda
@@ -253,21 +252,14 @@ class RingLoss(Loss):
                                  allow_deferred_init=True)
 
     def hybrid_forward(self, F, pred, label, embedding, R, sample_weight=None):
-
         # RingLoss
         emb_norm = F.norm(embedding, axis=1)
-        loss_r = F.square(emb_norm - R)
+        loss_r = F.square(F.broadcast_sub(emb_norm, R))
         loss_r = F.mean(loss_r, keepdims=True) * 0.5
 
         # Softmax
-        if not self._from_logits:
-            pred = F.log_softmax(pred, self._axis)
-        if self._sparse_label:
-            loss_sm = -F.pick(pred, label, axis=self._axis, keepdims=True)
-        else:
-            label = _reshape_like(F, label, pred)
-            loss_sm = -F.sum(pred * label, axis=self._axis, keepdims=True)
-        loss_sm = F.mean(loss_sm, axis=self._batch_axis, exclude=True)
+        loss_sm = _softmax_loss(F, pred, label, self._weight, sample_weight,
+                                self._sparse_label, self._axis, self._batch_axis)
 
         loss = F.broadcast_add(loss_sm, self._lamda * loss_r)
         return _apply_weighting(F, loss, self._weight, sample_weight)

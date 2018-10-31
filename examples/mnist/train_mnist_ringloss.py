@@ -79,7 +79,7 @@ def train():
     ctx = [mx.gpu(i) for i in range(2)]
     batch_size = 256
 
-    lamda = 0.01
+    lamda = 1
 
     train_set = MNIST(train=True, transform=transform_train)
     train_data = gluon.data.DataLoader(train_set, batch_size, True, num_workers=4, last_batch='discard')
@@ -87,8 +87,8 @@ def train():
     val_data = gluon.data.DataLoader(val_set, batch_size, shuffle=False, num_workers=4)
 
     net = MnistNet(embedding_size=2, feature_norm=False, weight_norm=True)
-    # net.initialize(init=mx.init.MSRAPrelu(), ctx=ctx)
-    net.load_parameters("./pretrained_mnist.params", ctx=ctx)
+    net.initialize(init=mx.init.MSRAPrelu(), ctx=ctx)
+    # net.load_parameters("./pretrained_mnist.params", ctx=ctx)
     net.hybridize()
 
     loss = RingLoss(lamda)
@@ -162,7 +162,6 @@ def train():
 
         # if epoch == 10:
         #     net.save_parameters("./pretrained_mnist.params")
-        #     net.save_parameters("./models/attention%d-cifar10-epoch-%d.params" % (args.num_layers, epoch))
 
 
 if __name__ == '__main__':
