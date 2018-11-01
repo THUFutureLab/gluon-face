@@ -20,12 +20,34 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 """"""
+# MIT License
+#
+# Copyright (c) 2018 Haoxintong
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+""""""
 
 import os
 import time
 import mxnet as mx
 import numpy as np
-from gluonfr.loss import ArcLoss
+from gluonfr.loss import CosLoss
 from mxnet.gluon.data.vision import MNIST
 from mxnet import nd, gluon, metric as mtc, autograd as ag
 from examples.mnist.net.mnist_net import MnistNet
@@ -68,7 +90,7 @@ def validate(net, val_data, ctx, loss, plot=False):
 def train():
     epochs = 100
 
-    lr = 0.001
+    lr = 0.01
     lr_steps = [40, 70, np.inf]
     momentum = 0.9
     wd = 5e-4
@@ -78,8 +100,8 @@ def train():
     ctx = [mx.gpu(i) for i in range(2)]
     batch_size = 64
 
-    margin_s = 60
-    margin_m = 0.5
+    scale = 10
+    margin = 0.2
 
     train_set = MNIST(train=True, transform=transform_train)
     train_data = gluon.data.DataLoader(train_set, batch_size, True, num_workers=4, last_batch='discard')
@@ -91,7 +113,7 @@ def train():
     # net.load_parameters("./pretrained_mnist.params", ctx=ctx)
     net.hybridize()
 
-    loss = ArcLoss(s=margin_s, m=margin_m, classes=10)
+    loss = CosLoss(classes=10, s=scale, m=margin)
 
     train_params = net.collect_params()
     trainer = gluon.Trainer(train_params, 'sgd', {'learning_rate': lr, 'momentum': momentum, 'wd': wd})
@@ -148,8 +170,8 @@ def train():
             ebs = np.vstack(ebs)
             lbs = np.hstack(lbs)
 
-            plot_result(ebs, lbs, os.path.join("../../resources", "arcloss-train-epoch{}.png".format(epoch)))
-            plot_result(val_ebs, val_lbs, os.path.join("../../resources", "arcloss-val-epoch{}.png".format(epoch)))
+            plot_result(ebs, lbs, os.path.join("../../resources", "cosloss-train-epoch{}.png".format(epoch)))
+            plot_result(val_ebs, val_lbs, os.path.join("../../resources", "cosloss-val-epoch{}.png".format(epoch)))
 
         toc = time.time()
         print('[epoch % 3d] train accuracy: %.6f, train loss: %.6f | '

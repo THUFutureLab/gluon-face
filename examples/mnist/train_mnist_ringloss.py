@@ -104,7 +104,7 @@ def train():
     metric = mtc.Accuracy()
     num_batch = len(train_data)
 
-    for epoch in range(epochs):
+    for epoch in range(epochs+1):
         if epoch == lr_steps[lr_counter]:
             trainer.set_learning_rate(trainer.learning_rate * 0.1)
             lr_counter += 1
