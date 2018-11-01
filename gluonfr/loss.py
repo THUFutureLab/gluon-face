@@ -75,7 +75,7 @@ class CosLoss(SoftmaxCrossEntropyLoss):
         else:
             one_hot_label = label
 
-        body = F.broadcast_mul(one_hot_label, self._margin)
+        body = one_hot_label * self._margin
         fc7 = (x - body) * self._scale
 
         return super().hybrid_forward(F, pred=fc7, label=label, sample_weight=sample_weight)
