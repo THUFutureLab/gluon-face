@@ -19,7 +19,7 @@
 import math
 import numpy as np
 from mxnet import nd, init
-from mxnet.gluon.loss import Loss
+from mxnet.gluon.loss import Loss, SoftmaxCrossEntropyLoss
 
 __all__ = ["ArcLoss", "TripletLoss", "RingLoss"]
 numeric_types = (float, int, np.generic)
@@ -61,19 +61,27 @@ def _reshape_like(F, x, y):
     return x.reshape(y.shape) if F is nd.ndarray else F.reshape_like(x, y)
 
 
-def _softmax_loss(F, pred, gt_label, weight, sample_weight, sparse_label, axis, batch_axis):
-    pred = F.log_softmax(pred, axis)
-    if sparse_label:
-        loss = -F.pick(pred, gt_label, axis=axis, keepdims=True)
-    else:
-        label = _reshape_like(F, gt_label, pred)
-        loss = -F.sum(pred * label, axis=axis, keepdims=True)
-    loss = _apply_weighting(F, loss, weight, sample_weight)
-    return F.mean(loss, axis=batch_axis, exclude=True)
-
-
 # Angular/cosine margin based loss
-class ArcLoss(Loss):
+class CosLoss(SoftmaxCrossEntropyLoss):
+    def __init__(self, classes, m, s, axis=-1, sparse_label=True, weight=None, batch_axis=0, **kwargs):
+        super().__init__(axis=axis, sparse_label=sparse_label, weight=weight, batch_axis=batch_axis, **kwargs)
+        self._classes = classes
+        self._scale = s
+        self._margin = m
+
+    def hybrid_forward(self, F, x, label, sample_weight=None):
+        if self._sparse_label:
+            one_hot_label = F.one_hot(label, depth=self._classes, on_value=1.0, off_value=0.0)
+        else:
+            one_hot_label = label
+
+        body = F.broadcast_mul(one_hot_label, self._margin)
+        fc7 = (x - body) * self._scale
+
+        return super().hybrid_forward(F, pred=fc7, label=label, sample_weight=sample_weight)
+
+
+class ArcLoss(SoftmaxCrossEntropyLoss):
     r"""ArcLoss from
     `"ArcFace: Additive Angular Margin Loss for Deep Face Recognition"
     <https://arxiv.org/abs/1801.07698>`_ paper.
@@ -85,28 +93,25 @@ class ArcLoss(Loss):
 
     """
 
-    def __init__(self, s, m, classes, easy_margin=False, margin_verbose=False,
-                 axis=-1, sparse_label=True,
-                 weight=None, batch_axis=0, **kwargs):
-        super().__init__(weight, batch_axis, **kwargs)
+    def __init__(self, classes, m, s,
+                 axis=-1, sparse_label=True, weight=None, batch_axis=0, **kwargs):
+        super().__init__(axis=axis, sparse_label=sparse_label, weight=weight, batch_axis=batch_axis, **kwargs)
         assert s > 0.0
         assert 0.0 <= m < (math.pi / 2)
 
-        self.margin_s = s
-        self.margin_m = m
-        self.margin_verbose = True if margin_verbose > 0 else False
-        self.easy_margin = easy_margin
+        self.scale = s
+        self.margin = m
+
         self.cos_m = math.cos(m)
         self.sin_m = math.sin(m)
         self.mm = math.sin(math.pi - m) * m
-        # threshold = 0.0
+
         self.threshold = math.cos(math.pi - m)
+
         self._classes = classes
-        self._axis = axis
-        self._sparse_label = sparse_label
 
     def hybrid_forward(self, F, x, label, sample_weight=None, *args, **kwargs):
-        # nd.where()
+
         cos_theta = F.pick(x, label, axis=1)  # 得到fc7中gt_label位置的值。(B,1)或者(B)，即当前batch中yi处的scos(theta)
 
         #
@@ -130,9 +135,8 @@ class ArcLoss(Loss):
         diff = F.expand_dims(cos_theta_add_m - cos_theta, 1)
         gt_one_hot = F.one_hot(label, depth=self._classes, on_value=1.0, off_value=0.0)
         body = F.broadcast_mul(gt_one_hot, diff)
-        fc7 = (x + body) * self.margin_s
-        return _softmax_loss(F, fc7, label, self._weight, sample_weight,
-                             self._sparse_label, self._axis, self._batch_axis)
+        fc7 = (x + body) * self.scale
+        return super().hybrid_forward(F, pred=fc7, label=label, sample_weight=sample_weight)
 
 
 # Euclidean distance based loss
@@ -182,7 +186,7 @@ class TripletLoss(Loss):
         return _apply_weighting(F, loss, self._weight, None)
 
 
-class RingLoss(Loss):
+class RingLoss(SoftmaxCrossEntropyLoss):
     """Computes the Ring Loss from
     `"Ring loss: Convex Feature Normalization for Face Recognition"
     <https://arxiv.org/abs/1803.00130>`_paper.
@@ -234,15 +238,11 @@ class RingLoss(Loss):
 
     """
 
-    def __init__(self, lamda, weight=None, batch_axis=0,
-                 axis=-1, sparse_label=True,
-                 weight_initializer=init.Constant(1.0), dtype='float32', **kwargs):
-        super().__init__(weight=weight, batch_axis=batch_axis, **kwargs)
-        # Softmax
-        self._axis = axis
-        self._sparse_label = sparse_label
+    def __init__(self, lamda,
+                 weight_initializer=init.Constant(1.0), dtype='float32',
+                 axis=-1, sparse_label=True, weight=None, batch_axis=0, **kwargs):
+        super().__init__(axis=axis, sparse_label=sparse_label, weight=weight, batch_axis=batch_axis, **kwargs)
 
-        # RingLoss
         self._lamda = lamda
         self.R = self.params.get('R', shape=(1,),
                                  init=weight_initializer, dtype=dtype,
@@ -253,15 +253,9 @@ class RingLoss(Loss):
         emb_norm = F.norm(embedding, axis=1)
         loss_r = F.square(F.broadcast_sub(emb_norm, R))
         loss_r = F.mean(loss_r, keepdims=True) * 0.5
+        loss_r = _apply_weighting(F, loss_r, self._weight, sample_weight)
 
         # Softmax
-        pred = F.log_softmax(pred, self._axis)
-        if self._sparse_label:
-            loss_sm = -F.pick(pred, label, axis=self._axis, keepdims=True)
-        else:
-            label = _reshape_like(F, label, pred)
-            loss_sm = -F.sum(pred * label, axis=self._axis, keepdims=True)
-        loss_sm = F.mean(loss_sm, axis=self._batch_axis, exclude=True)
+        loss_sm = super().hybrid_forward(F, pred, label, sample_weight)
 
-        loss = F.broadcast_add(loss_sm, self._lamda * loss_r)
-        return _apply_weighting(F, loss, self._weight, sample_weight)
+        return F.broadcast_add(loss_sm, self._lamda * loss_r)
