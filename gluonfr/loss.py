@@ -21,7 +21,7 @@ import numpy as np
 from mxnet import nd, init
 from mxnet.gluon.loss import Loss, SoftmaxCrossEntropyLoss
 
-__all__ = ["ArcLoss", "TripletLoss", "RingLoss"]
+__all__ = ["ArcLoss", "TripletLoss", "RingLoss", "CosLoss"]
 numeric_types = (float, int, np.generic)
 
 
@@ -81,7 +81,7 @@ class CosLoss(SoftmaxCrossEntropyLoss):
         return super().hybrid_forward(F, pred=fc7, label=label, sample_weight=sample_weight)
 
 
-class ArcFaceLoss(SoftmaxCrossEntropyLoss):
+class ArcLoss(SoftmaxCrossEntropyLoss):
     r"""ArcLoss from
     `"ArcFace: Additive Angular Margin Loss for Deep Face Recognition"
     <https://arxiv.org/abs/1801.07698>`_ paper.
@@ -92,10 +92,11 @@ class ArcFaceLoss(SoftmaxCrossEntropyLoss):
     :param m:
 
     """
-    def __init__(self, s, m, classes, easy_margin=True,
+
+    def __init__(self, classes, s, m,  easy_margin=True,
                  axis=-1, sparse_label=True, weight=None, batch_axis=0, **kwargs):
-        super(ArcFaceLoss, self).__init__(axis=axis, sparse_label=sparse_label,
-                                      weight=weight, batch_axis=batch_axis, **kwargs)
+        super().__init__(axis=axis, sparse_label=sparse_label,
+                         weight=weight, batch_axis=batch_axis, **kwargs)
         assert s > 0.
         assert 0 <= m < (math.pi / 2)
         self.s = s
