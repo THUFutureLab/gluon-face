@@ -81,7 +81,7 @@ class CosLoss(SoftmaxCrossEntropyLoss):
         return super().hybrid_forward(F, pred=fc7, label=label, sample_weight=sample_weight)
 
 
-class ArcLoss(SoftmaxCrossEntropyLoss):
+class ArcFaceLoss(SoftmaxCrossEntropyLoss):
     r"""ArcLoss from
     `"ArcFace: Additive Angular Margin Loss for Deep Face Recognition"
     <https://arxiv.org/abs/1801.07698>`_ paper.
@@ -92,51 +92,44 @@ class ArcLoss(SoftmaxCrossEntropyLoss):
     :param m:
 
     """
-
-    def __init__(self, classes, m, s,
+    def __init__(self, s, m, classes, easy_margin=True,
                  axis=-1, sparse_label=True, weight=None, batch_axis=0, **kwargs):
-        super().__init__(axis=axis, sparse_label=sparse_label, weight=weight, batch_axis=batch_axis, **kwargs)
-        assert s > 0.0
-        assert 0.0 <= m < (math.pi / 2)
-
-        self.scale = s
-        self.margin = m
-
+        super(ArcFaceLoss, self).__init__(axis=axis, sparse_label=sparse_label,
+                                      weight=weight, batch_axis=batch_axis, **kwargs)
+        assert s > 0.
+        assert 0 <= m < (math.pi / 2)
+        self.s = s
+        self.m = m
         self.cos_m = math.cos(m)
         self.sin_m = math.sin(m)
         self.mm = math.sin(math.pi - m) * m
-
         self.threshold = math.cos(math.pi - m)
-
         self._classes = classes
+        self.easy_margin = easy_margin
 
-    def hybrid_forward(self, F, x, label, sample_weight=None, *args, **kwargs):
+    def hybrid_forward(self, F, pred, label, sample_weight=None, *args, **kwargs):
 
-        cos_theta = F.pick(x, label, axis=1)  # 得到fc7中gt_label位置的值。(B,1)或者(B)，即当前batch中yi处的scos(theta)
-
-        #
-        # if self.easy_margin:
-        #     cond = F.Activation(data=cos_theta, act_type='relu')
-        #
-        # else:
-        #     cond_v = cos_theta - self.threshold
-        #     cond = F.Activation(data=cond_v, act_type='relu')
-
-        sin_theta = F.sqrt(1.0 - cos_theta * cos_theta)
-
-        cos_theta_add_m = cos_theta * self.cos_m - sin_theta * self.sin_m
-        # new_zy = new_zy * self.margin_s
-        # if self.easy_margin:
-        #     zy_keep = zy
-        # else:
-        #     zy_keep = zy - self.margin_s * self.mm
-        # new_zy = F.where(cond, new_zy, zy_keep)
-
-        diff = F.expand_dims(cos_theta_add_m - cos_theta, 1)
-        gt_one_hot = F.one_hot(label, depth=self._classes, on_value=1.0, off_value=0.0)
+        cos_t = F.pick(pred, label, axis=1)  # cos(theta_yi)
+        if self.easy_margin:
+            cond = F.Activation(data=cos_t, act_type='relu')
+        else:
+            cond_v = cos_t - self.threshold
+            cond = F.Activation(data=cond_v, act_type='relu')
+        sin_t = 1.0 - F.sqrt(cos_t * cos_t)  # sin(theta)
+        new_zy = cos_t * self.cos_m - sin_t * self.sin_m  # cos(theta_yi + m)
+        if self.easy_margin:
+            zy_keep = cos_t
+        else:
+            zy_keep = cos_t - self.mm  # (cos(theta_yi) - sin(pi - m)*m)
+        new_zy = F.where(cond, new_zy, zy_keep)
+        diff = new_zy - cos_t  # cos(theta_yi + m) - cos(theta_yi)
+        diff = F.expand_dims(diff, 1)  # shape=(b, 1)
+        gt_one_hot = F.one_hot(label, depth=self._classes, on_value=1.0, off_value=0.0)  # shape=(b,classes)
         body = F.broadcast_mul(gt_one_hot, diff)
-        fc7 = (x + body) * self.scale
-        return super().hybrid_forward(F, pred=fc7, label=label, sample_weight=sample_weight)
+        pred = pred + body
+        pred = pred * self.s
+
+        return super().hybrid_forward(F, pred=pred, label=label, sample_weight=sample_weight)
 
 
 # Euclidean distance based loss
