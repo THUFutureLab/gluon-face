@@ -39,7 +39,7 @@ class LeNet_m(nn.HybridBlock):
             nn.MaxPool2D(2, strides=2),
             nn.Dense(embedding_size, use_bias=False)
         )
-        self.output = NormDense(10, weight_norm=True, feature_norm=True, in_units=2)
+        self.output = NormDense(10, weight_norm=True, feature_norm=True, in_units=embedding_size)
 
     def hybrid_forward(self, F, x, *args, **kwargs):
         embedding = self.feature(x)
