@@ -3,7 +3,7 @@
 # @Contact : pistonyang@gmail.com
 # @Date  : 18-11-2
 """This net is proposed form center loss.
-We also it to test other losses."""
+We also use it to test other losses."""
 from mxnet.gluon import nn
 from gluonfr.nn.basic_blocks import NormDense
 
