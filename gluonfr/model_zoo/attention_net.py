@@ -202,7 +202,7 @@ class AttentionNet(nn.HybridBlock):
         with self.name_scope():
             self.features = nn.HybridSequential()
             # 112x112
-            self.features.add(nn.Conv2D(64, 7, 2, 3, use_bias=False))
+            self.features.add(nn.Conv2D(64, 3, 2, 1, use_bias=False))
             self.features.add(nn.BatchNorm())
             self.features.add(nn.Activation('relu'))
 
@@ -290,7 +290,7 @@ class AttentionNetFace(nn.HybridBlock):
                               nn.Flatten())
 
             # classes
-            self.output = nn.Dense(classes)
+            self.output = nn.Dense(classes, use_bias=False)
 
     def hybrid_forward(self, F, x, *args, **kwargs):
         x = self.features(x)

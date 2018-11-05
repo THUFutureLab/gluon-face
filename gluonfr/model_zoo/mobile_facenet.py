@@ -87,7 +87,7 @@ class MobileFaceNet(nn.HybridBlock):
 
             self.output = nn.HybridSequential(prefix='output_')
             with self.output.name_scope():
-                self.output.add(nn.Dense(classes))
+                self.output.add(nn.Dense(classes, use_bias=False))
 
     def hybrid_forward(self, F, x, **kwargs):
         x = self.feature(x)
