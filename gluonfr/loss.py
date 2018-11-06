@@ -21,7 +21,8 @@ import numpy as np
 from mxnet import nd, init
 from mxnet.gluon.loss import Loss, SoftmaxCrossEntropyLoss
 
-__all__ = ["ArcLoss", "TripletLoss", "RingLoss", "CosLoss"]
+__all__ = ["SoftmaxCrossEntropyLoss", "ArcLoss", "TripletLoss", "RingLoss", "CosLoss",
+           "L2Softmax", ]
 numeric_types = (float, int, np.generic)
 
 
@@ -61,8 +62,63 @@ def _reshape_like(F, x, y):
     return x.reshape(y.shape) if F is nd.ndarray else F.reshape_like(x, y)
 
 
-# Angular/cosine margin based loss
+class L2Softmax(SoftmaxCrossEntropyLoss):
+    r"""L2Softmax from
+    `"L2-constrained Softmax Loss for Discriminative Face Verification"
+    <https://arxiv.org/abs/1703.09507>`_ paper.
+
+    Parameters
+    ----------
+    classes: int.
+        Number of classes.
+    alpha: float.
+        The scaling parameter, a hypersphere with small alpha
+        will limit surface area for embedding features.
+    p: float, default is 0.9.
+        The expected average softmax probability for correctly
+        classifying a feature.
+
+    Outputs:
+        - **loss**: loss tensor with shape (batch_size,). Dimensions other than
+          batch_axis are averaged out.
+    """
+
+    def __init__(self, classes, alpha, p=0.9,
+                 axis=-1, sparse_label=True, weight=None, batch_axis=0, **kwargs):
+        super().__init__(axis=axis, sparse_label=sparse_label, weight=weight, batch_axis=batch_axis, **kwargs)
+        alpha_low = math.log(p * (classes - 2) / (1 - p))
+        assert alpha > alpha_low, "For given probability of p={}, alpha should higher than {}.".format(p, alpha_low)
+        self.alpha = alpha
+
+    def hybrid_forward(self, F, x, label, sample_weight=None):
+        x = F.L2Normalization(x, mode='instance', name='fc1n')
+        fc7 = x * self.alpha
+        return super().hybrid_forward(F, pred=fc7, label=label, sample_weight=sample_weight)
+
+
 class CosLoss(SoftmaxCrossEntropyLoss):
+    r"""CosLoss from
+       `"CosFace: Large Margin Cosine Loss for Deep Face Recognition"
+       <https://arxiv.org/abs/1801.09414>`_ paper.
+
+       It is also AM-Softmax from
+       `"Additive Margin Softmax for Face Verification"
+       <https://arxiv.org/abs/1801.05599>`_ paper.
+
+    Parameters
+    ----------
+    classes: int.
+        Number of classes.
+    m: float.
+        Margin parameter for loss.
+    s: int.
+        Scale parameter for loss.
+
+
+    Outputs:
+        - **loss**: loss tensor with shape (batch_size,). Dimensions other than
+          batch_axis are averaged out.
+    """
     def __init__(self, classes, m, s, axis=-1, sparse_label=True, weight=None, batch_axis=0, **kwargs):
         super().__init__(axis=axis, sparse_label=sparse_label, weight=weight, batch_axis=batch_axis, **kwargs)
         self._classes = classes
@@ -88,12 +144,19 @@ class ArcLoss(SoftmaxCrossEntropyLoss):
 
     Parameters
     ----------
-    :param s: int. Scale parameter for loss.
-    :param m:
+    classes: int.
+        Number of classes.
+    m: float.
+        Margin parameter for loss.
+    s: int.
+        Scale parameter for loss.
 
+    Outputs:
+        - **loss**: loss tensor with shape (batch_size,). Dimensions other than
+          batch_axis are averaged out.
     """
 
-    def __init__(self, classes, s, m,  easy_margin=True,
+    def __init__(self, classes, m, s,  easy_margin=True,
                  axis=-1, sparse_label=True, weight=None, batch_axis=0, **kwargs):
         super().__init__(axis=axis, sparse_label=sparse_label,
                          weight=weight, batch_axis=batch_axis, **kwargs)
@@ -133,7 +196,6 @@ class ArcLoss(SoftmaxCrossEntropyLoss):
         return super().hybrid_forward(F, pred=pred, label=label, sample_weight=sample_weight)
 
 
-# Euclidean distance based loss
 class TripletLoss(Loss):
     r"""Calculates triplet loss given three input tensors and a positive margin.
     Triplet loss measures the relative similarity between prediction, a positive
@@ -148,11 +210,11 @@ class TripletLoss(Loss):
 
     Parameters
     ----------
-    margin : float
+    margin: float
         Margin of separation between correct and incorrect pair.
-    weight : float or None
+    weight: float or None
         Global scalar weight for loss.
-    batch_axis : int, default 0
+    batch_axis: int, default 0
         The axis that represents mini-batch.
 
 
@@ -192,55 +254,24 @@ class RingLoss(SoftmaxCrossEntropyLoss):
 
         L_R = \frac{\lambda}{2m} \sum_{i=1}^{m} (\Vert \mathcal{F}({x}_i)\Vert_2 - R )^2
 
-     Parameters
+    Parameters
     ----------
     lamda: float
         The loss weight enforcing a trade-off between the softmax loss and ring loss.
-    axis : int, default -1
-        The axis to sum over when computing softmax and entropy.
-    sparse_label : bool, default True
-        Whether label is an integer array instead of probability distribution.
-    from_logits : bool, default False
-        Whether input is a log probability (usually from log_softmax) instead
-        of unnormalized numbers.
-    weight : float or None
-        Global scalar weight for loss.
-    batch_axis : int, default 0
-        The axis that represents mini-batch.
-
-
-    Inputs:
-        - **pred**: the prediction tensor, where the `batch_axis` dimension
-          ranges over batch size and `axis` dimension ranges over the number
-          of classes.
-        - **label**: the truth tensor. When `sparse_label` is True, `label`'s
-          shape should be `pred`'s shape with the `axis` dimension removed.
-          i.e. for `pred` with shape (1,2,3,4) and `axis = 2`, `label`'s shape
-          should be (1,2,4) and values should be integers between 0 and 2. If
-          `sparse_label` is False, `label`'s shape must be the same as `pred`
-          and values should be floats in the range `[0, 1]`.
-        - **embedding**: the output of embedding layer before classification.
-          It should be (batch size, feature size) shape.
-        - **sample_weight**: element-wise weighting tensor. Must be broadcastable
-          to the same shape as label. For example, if label has shape (64, 10)
-          and you want to weigh each sample in the batch separately,
-          sample_weight should have shape (64, 1).
 
     Outputs:
-        - **loss**: loss tensor with shape (batch_size,). Dimenions other than
+        - **loss**: loss tensor with shape (batch_size,). Dimensions other than
           batch_axis are averaged out.
 
     """
 
-    def __init__(self, lamda,
-                 weight_initializer=init.Constant(1.0), dtype='float32',
+    def __init__(self, lamda, weight_initializer=init.Constant(1.0), dtype='float32',
                  axis=-1, sparse_label=True, weight=None, batch_axis=0, **kwargs):
         super().__init__(axis=axis, sparse_label=sparse_label, weight=weight, batch_axis=batch_axis, **kwargs)
 
         self._lamda = lamda
-        self.R = self.params.get('R', shape=(1,),
-                                 init=weight_initializer, dtype=dtype,
-                                 allow_deferred_init=True)
+        self.R = self.params.get('R', shape=(1,), init=weight_initializer,
+                                 dtype=dtype, allow_deferred_init=True)
 
     def hybrid_forward(self, F, pred, label, embedding, R, sample_weight=None):
         # RingLoss
