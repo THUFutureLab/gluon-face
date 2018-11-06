@@ -38,7 +38,7 @@ class LeNet_m(nn.HybridBlock):
             nn.PReLU(),
             nn.MaxPool2D(2, strides=2),
             nn.Flatten(),
-            nn.Dense(embedding_size),
+            nn.Dense(embedding_size, use_bias=False),
             nn.PReLU()
         )
         self.output = NormDense(10, weight_norm=True, feature_norm=True, in_units=embedding_size)
