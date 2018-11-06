@@ -77,21 +77,25 @@ class L2Softmax(SoftmaxCrossEntropyLoss):
     p: float, default is 0.9.
         The expected average softmax probability for correctly
         classifying a feature.
+    from_normx: bool, default is False.
+         Whether input has already been normalized.
 
     Outputs:
         - **loss**: loss tensor with shape (batch_size,). Dimensions other than
           batch_axis are averaged out.
     """
 
-    def __init__(self, classes, alpha, p=0.9,
+    def __init__(self, classes, alpha, p=0.9, from_normx=False,
                  axis=-1, sparse_label=True, weight=None, batch_axis=0, **kwargs):
         super().__init__(axis=axis, sparse_label=sparse_label, weight=weight, batch_axis=batch_axis, **kwargs)
         alpha_low = math.log(p * (classes - 2) / (1 - p))
         assert alpha > alpha_low, "For given probability of p={}, alpha should higher than {}.".format(p, alpha_low)
         self.alpha = alpha
+        self._from_normx = from_normx
 
     def hybrid_forward(self, F, x, label, sample_weight=None):
-        x = F.L2Normalization(x, mode='instance', name='fc1n')
+        if not self._from_normx:
+            x = F.L2Normalization(x, mode='instance', name='fc1n')
         fc7 = x * self.alpha
         return super().hybrid_forward(F, pred=fc7, label=label, sample_weight=sample_weight)
 
