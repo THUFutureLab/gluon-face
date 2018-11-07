@@ -113,9 +113,9 @@ class CosLoss(SoftmaxCrossEntropyLoss):
     ----------
     classes: int.
         Number of classes.
-    m: float.
+    m: float, default 0.4
         Margin parameter for loss.
-    s: int.
+    s: int, default 64
         Scale parameter for loss.
 
 
@@ -160,7 +160,7 @@ class ArcLoss(SoftmaxCrossEntropyLoss):
           batch_axis are averaged out.
     """
 
-    def __init__(self, classes, m, s,  easy_margin=True,
+    def __init__(self, classes, m=0.5, s=64,  easy_margin=True,
                  axis=-1, sparse_label=True, weight=None, batch_axis=0, **kwargs):
         super().__init__(axis=axis, sparse_label=sparse_label,
                          weight=weight, batch_axis=batch_axis, **kwargs)
