@@ -21,6 +21,7 @@
 # SOFTWARE.
 """Basic Blocks used in GluonFR."""
 
+from mxnet.gluon import nn
 from mxnet.gluon.nn import HybridBlock
 
 
@@ -55,3 +56,21 @@ class NormDense(HybridBlock):
         shape = self.weight.shape
         return s.format(name=self.__class__.__name__,
                         layout='{0} -> {1}'.format(shape[1] if shape[1] else None, shape[0]))
+
+
+class SELayer(HybridBlock):
+    def __init__(self, channel, in_channel, reduction=16, **kwargs):
+        super(SELayer, self).__init__(**kwargs)
+        with self.name_scope():
+            self.avg_pool = nn.GlobalAvgPool2D()
+            self.fc = nn.HybridSequential()
+            with self.fc.name_scope():
+                self.fc.add(nn.Conv2D(channel // reduction, kernel_size=1, in_channels=in_channel))
+                self.fc.add(nn.PReLU())
+                self.fc.add(nn.Conv2D(channel, kernel_size=1, in_channels=channel // reduction))
+                self.fc.add(nn.Activation('sigmoid'))
+
+    def hybrid_forward(self, F, x, *args, **kwargs):
+        y = self.avg_pool(x)
+        y = self.fc(y)
+        return F.broadcast_mul(x, y)

@@ -14,25 +14,7 @@ from mxnet import autograd
 from mxnet.gluon import nn
 from mxnet.gluon.block import HybridBlock
 from mxnet.gluon.model_zoo.vision.resnet import _conv3x3
-from gluonfr.nn.basic_blocks import NormDense
-
-
-class SELayer(nn.HybridBlock):
-    def __init__(self, channel, in_channel, reduction=16, **kwargs):
-        super(SELayer, self).__init__(**kwargs)
-        with self.name_scope():
-            self.avg_pool = nn.GlobalAvgPool2D()
-            self.fc = nn.HybridSequential()
-            with self.fc.name_scope():
-                self.fc.add(nn.Conv2D(channel // reduction, kernel_size=1, in_channels=in_channel))
-                self.fc.add(nn.PReLU())
-                self.fc.add(nn.Conv2D(channel, kernel_size=1, in_channels=channel // reduction))
-                self.fc.add(nn.Activation('sigmoid'))
-
-    def hybrid_forward(self, F, x, *args, **kwargs):
-        y = self.avg_pool(x)
-        y = self.fc(y)
-        return F.broadcast_mul(x, y)
+from gluonfr.nn.basic_blocks import NormDense, SELayer
 
 
 class SE_BottleneckV2(HybridBlock):
