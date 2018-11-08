@@ -87,10 +87,10 @@ class MobileFaceNet(nn.HybridBlock):
 
                 self.feature.add(_make_conv(6, 512),
                                  _make_conv(6, 512, kernel=7, num_group=512, active=False),
-                                 nn.Conv2D(embedding_size, 1, use_bias=False),
+                                 nn.Flatten(),
+                                 nn.Dense(embedding_size, use_bias=False),
                                  nn.BatchNorm(scale=False, center=False),
-                                 nn.PReLU(),
-                                 nn.Flatten())
+                                 nn.PReLU())
 
             self.output = NormDense(classes, weight_norm, feature_norm,
                                     in_units=embedding_size, prefix='output_')

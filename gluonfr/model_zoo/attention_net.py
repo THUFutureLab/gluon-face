@@ -288,12 +288,12 @@ class AttentionNetFace(nn.HybridBlock):
             # 2048
             self.features.add(nn.BatchNorm(),
                               nn.Activation('relu'),
-                              nn.GlobalAvgPool2D())
-            # embedding
-            self.features.add(nn.Conv2D(embedding_size, kernel_size=1, use_bias=False),
-                              nn.BatchNorm(scale=False, center=False),
-                              nn.PReLU(),
+                              nn.GlobalAvgPool2D(),
                               nn.Flatten())
+            # embedding
+            self.features.add(nn.Dense(embedding_size, use_bias=False),
+                              nn.BatchNorm(scale=False, center=False),
+                              nn.PReLU())
 
             # classes
             self.output = NormDense(classes, weight_norm, feature_norm,
