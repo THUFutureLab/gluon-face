@@ -22,7 +22,7 @@ from mxnet import nd, init
 from mxnet.gluon.loss import Loss, SoftmaxCrossEntropyLoss
 
 __all__ = ["SoftmaxCrossEntropyLoss", "ArcLoss", "TripletLoss", "RingLoss", "CosLoss",
-           "L2Softmax", ]
+           "L2Softmax", "ASoftmax", "ContrastiveLoss", ]
 numeric_types = (float, int, np.generic)
 
 
@@ -178,25 +178,24 @@ class ArcLoss(SoftmaxCrossEntropyLoss):
 
     def hybrid_forward(self, F, pred, label, sample_weight=None, *args, **kwargs):
 
-        cos_t = F.pick(pred, label, axis=1)  # cos(theta_yi)
+        cos_t = F.pick(pred, label, axis=1)
         if self.easy_margin:
             cond = F.Activation(data=cos_t, act_type='relu')
         else:
             cond_v = cos_t - self.threshold
             cond = F.Activation(data=cond_v, act_type='relu')
-        sin_t = 1.0 - F.sqrt(cos_t * cos_t)  # sin(theta)
-        new_zy = cos_t * self.cos_m - sin_t * self.sin_m  # cos(theta_yi + m)
+        sin_t = 1.0 - F.sqrt(cos_t * cos_t)
+        new_zy = cos_t * self.cos_m - sin_t * self.sin_m
         if self.easy_margin:
             zy_keep = cos_t
         else:
-            zy_keep = cos_t - self.mm  # (cos(theta_yi) - sin(pi - m)*m)
+            zy_keep = cos_t - self.mm
         new_zy = F.where(cond, new_zy, zy_keep)
-        diff = new_zy - cos_t  # cos(theta_yi + m) - cos(theta_yi)
-        diff = F.expand_dims(diff, 1)  # shape=(b, 1)
-        gt_one_hot = F.one_hot(label, depth=self._classes, on_value=1.0, off_value=0.0)  # shape=(b,classes)
+        diff = new_zy - cos_t
+        diff = F.expand_dims(diff, 1)
+        gt_one_hot = F.one_hot(label, depth=self._classes, on_value=1.0, off_value=0.0)
         body = F.broadcast_mul(gt_one_hot, diff)
-        pred = pred + body
-        pred = pred * self.s
+        pred = (pred + body) * self.s
 
         return super().hybrid_forward(F, pred=pred, label=label, sample_weight=sample_weight)
 
@@ -247,6 +246,41 @@ class TripletLoss(Loss):
         return _apply_weighting(F, loss, self._weight, None)
 
 
+class ContrastiveLoss(Loss):
+    r"""Computes the contrastive loss.
+    This loss encourages the embedding to be close to each other for
+    the samples of the same label and the embedding to be far apart at least
+    by the margin constant for the samples of different labels.
+    See: http://yann.lecun.com/exdb/publis/pdf/hadsell-chopra-lecun-06.pdf
+    Parameters
+    ----------
+    margin: float, default is 1.
+        Margin term in the loss definition.
+
+    Inputs:
+
+        - **anchor**: prediction tensor. Embeddings should be l2 normalized.
+        - **positive**: positive example tensor with arbitrary shape. Must have
+          the same size as anchor. Embeddings should be l2 normalized.
+        - **labels**: array with shape (batch_size,) of
+          binary labels indicating positive vs negative pair.
+
+    Outputs:
+        - **loss**:  loss tensor with shape (batch_size,).Dimensions other than
+          batch_axis are averaged out.
+      """
+
+    def __init__(self, margin=1, weight=None, batch_axis=0, **kwargs):
+        super().__init__(weight, batch_axis, **kwargs)
+        self._margin = margin
+
+    def hybrid_forward(self, F, anchor, positive, labels):
+        positive = _reshape_like(F, positive, anchor)
+        dists = F.norm(F.square(anchor - positive), axis=1)
+        loss = labels * F.square(dists) + (1 - labels) * F.square(F.maximum(self._margin - dists, 0))
+        return _apply_weighting(F, loss, self._weight, None)
+
+
 class RingLoss(SoftmaxCrossEntropyLoss):
     """Computes the Ring Loss from
     `"Ring loss: Convex Feature Normalization for Face Recognition"
@@ -270,7 +304,7 @@ class RingLoss(SoftmaxCrossEntropyLoss):
 
     """
 
-    def __init__(self, lamda, weight_initializer=init.Constant(1.0), dtype='float32',
+    def __init__(self, lamda, weight_initializer=None, dtype='float32',
                  axis=-1, sparse_label=True, weight=None, batch_axis=0, **kwargs):
         super().__init__(axis=axis, sparse_label=sparse_label, weight=weight, batch_axis=batch_axis, **kwargs)
 
@@ -331,10 +365,11 @@ class ASoftmax(SoftmaxCrossEntropyLoss):
             lambda x: 16 * x ** 5 - 20 * x ** 3 + 5 * x
         ]
 
+    @staticmethod
     def _myphi(x, m):
         x = x * m
         return 1 - x ** 2 / math.factorial(2) + x ** 4 / math.factorial(4) - x ** 6 / math.factorial(6) + \
-               x ** 8 / math.factorial(8) - x ** 9 / math.factorial(9)
+            x ** 8 / math.factorial(8) - x ** 9 / math.factorial(9)
 
     def hybrid_forward(self, F, x, label, sample_weight=None):
         cos_theta = F.clip(x, -1, 1)
