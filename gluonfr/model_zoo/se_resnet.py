@@ -14,25 +14,7 @@ from mxnet import autograd
 from mxnet.gluon import nn
 from mxnet.gluon.block import HybridBlock
 from mxnet.gluon.model_zoo.vision.resnet import _conv3x3
-from gluonfr.nn.basic_blocks import NormDense
-
-
-class SELayer(nn.HybridBlock):
-    def __init__(self, channel, in_channel, reduction=16, **kwargs):
-        super(SELayer, self).__init__(**kwargs)
-        with self.name_scope():
-            self.avg_pool = nn.GlobalAvgPool2D()
-            self.fc = nn.HybridSequential()
-            with self.fc.name_scope():
-                self.fc.add(nn.Conv2D(channel // reduction, kernel_size=1, in_channels=in_channel))
-                self.fc.add(nn.PReLU())
-                self.fc.add(nn.Conv2D(channel, kernel_size=1, in_channels=channel // reduction))
-                self.fc.add(nn.Activation('sigmoid'))
-
-    def hybrid_forward(self, F, x, *args, **kwargs):
-        y = self.avg_pool(x)
-        y = self.fc(y)
-        return F.broadcast_mul(x, y)
+from gluonfr.nn.basic_blocks import NormDense, SELayer
 
 
 class SE_BottleneckV2(HybridBlock):
@@ -111,8 +93,8 @@ class SE_ResNetV2(HybridBlock):
         Enable thumbnail.
     """
 
-    def __init__(self, block, layers, channels, classes=1000, thumbnail=False,
-                 embedding=512, weight_norm=False, feature_norm=False, **kwargs):
+    def __init__(self, block, layers, channels, classes, thumbnail=False,
+                 embedding_size=512, weight_norm=False, feature_norm=False, **kwargs):
         super(SE_ResNetV2, self).__init__(**kwargs)
         assert len(layers) == len(channels) - 1
         with self.name_scope():
@@ -135,15 +117,14 @@ class SE_ResNetV2(HybridBlock):
             self.features.add(nn.BatchNorm())
             self.features.add(nn.PReLU())
             self.features.add(nn.GlobalAvgPool2D())
+
+            self.features.add(nn.Conv2D(embedding_size, kernel_size=1, use_bias=False))
+            self.features.add(nn.BatchNorm(scale=False, center=False))
+            self.features.add(nn.PReLU())
             self.features.add(nn.Flatten())
 
-            self.embedding_layer = nn.HybridSequential('embedding_')
-            self.embedding_layer.add(nn.Dense(embedding, use_bias=False))
-            self.embedding_layer.add(nn.BatchNorm(scale=False, center=False))
-            self.embedding_layer.add(nn.PReLU())
-
             self.output = NormDense(classes, weight_norm=weight_norm, feature_norm=feature_norm,
-                                    in_units=embedding)
+                                    in_units=embedding_size, prefix='output_')
 
     def _make_layer(self, block, layers, channels, stride, stage_index, in_channels=0):
         layer = nn.HybridSequential(prefix='stage%d_' % stage_index)
@@ -155,13 +136,9 @@ class SE_ResNetV2(HybridBlock):
         return layer
 
     def hybrid_forward(self, F, x):
-        x = self.features(x)
-        emd = self.embedding_layer(x)
-        if autograd.is_training():
-            x = self.output(emd)
-            return x
-        else:
-            return emd
+        emdedding = self.features(x)
+        out = self.output(emdedding)
+        return emdedding, out
 
 
 resnet_spec = {18: (SE_BottleneckV2, [2, 2, 2, 2], [64, 64, 128, 256, 512]),

@@ -254,8 +254,8 @@ class AttentionNetFace(nn.HybridBlock):
 
     """
 
-    def __init__(self, classes, embedding_size, modules, p, t, r,
-                 weight_norm=False, feature_norm=False, **kwargs):
+    def __init__(self, classes, modules, p, t, r,
+                 weight_norm=False, feature_norm=False, embedding_size=512, **kwargs):
         super().__init__(**kwargs)
         assert len(modules) == 3
         with self.name_scope():
@@ -288,18 +288,21 @@ class AttentionNetFace(nn.HybridBlock):
             # 2048
             self.features.add(nn.BatchNorm(),
                               nn.Activation('relu'),
-                              nn.GlobalAvgPool2D(),
-                              nn.Flatten(),
-                              nn.Dense(embedding_size, use_bias=False),
-                              nn.PReLU()
-                              )
+                              nn.GlobalAvgPool2D())
+            # embedding
+            self.features.add(nn.Conv2D(embedding_size, kernel_size=1, use_bias=False),
+                              nn.BatchNorm(scale=False, center=False),
+                              nn.PReLU(),
+                              nn.Flatten())
 
             # classes
-            self.output = NormDense(classes, weight_norm, feature_norm, in_units=embedding_size)
+            self.output = NormDense(classes, weight_norm=weight_norm, feature_norm=feature_norm,
+                                    in_units=embedding_size, prefix='output_')
 
     def hybrid_forward(self, F, x, *args, **kwargs):
-        x = self.features(x)
-        return x, self.output(x)
+        embedding = self.features(x)
+        out = self.output(embedding)
+        return embedding, out
 
 
 # Specification ([p, t, r], [stage1, stage2, stage3])
