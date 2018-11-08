@@ -93,7 +93,7 @@ class SE_ResNetV2(HybridBlock):
         Enable thumbnail.
     """
 
-    def __init__(self, block, layers, channels, classes=1000, thumbnail=False,
+    def __init__(self, block, layers, channels, classes, thumbnail=False,
                  embedding_size=512, weight_norm=False, feature_norm=False, **kwargs):
         super(SE_ResNetV2, self).__init__(**kwargs)
         assert len(layers) == len(channels) - 1
@@ -117,14 +117,14 @@ class SE_ResNetV2(HybridBlock):
             self.features.add(nn.BatchNorm())
             self.features.add(nn.PReLU())
             self.features.add(nn.GlobalAvgPool2D())
+
+            self.features.add(nn.Conv2D(embedding_size, kernel_size=1, use_bias=False))
+            self.features.add(nn.BatchNorm(scale=False, center=False))
+            self.features.add(nn.PReLU())
             self.features.add(nn.Flatten())
 
-            self.features.add(nn.Dense(embedding_size, use_bias=False))
-            self.features.add(nn.BatchNorm(scale=False))
-            self.features.add(nn.PReLU())
-
             self.output = NormDense(classes, weight_norm=weight_norm, feature_norm=feature_norm,
-                                    in_units=embedding_size)
+                                    in_units=embedding_size, prefix='output_')
 
     def _make_layer(self, block, layers, channels, stride, stage_index, in_channels=0):
         layer = nn.HybridSequential(prefix='stage%d_' % stage_index)
@@ -137,8 +137,8 @@ class SE_ResNetV2(HybridBlock):
 
     def hybrid_forward(self, F, x):
         emdedding = self.features(x)
-        output = self.output(emdedding)
-        return emdedding, output
+        out = self.output(emdedding)
+        return emdedding, out
 
 
 resnet_spec = {18: (SE_BottleneckV2, [2, 2, 2, 2], [64, 64, 128, 256, 512]),

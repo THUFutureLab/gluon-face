@@ -21,6 +21,8 @@
 # SOFTWARE.
 """Basic Blocks used in GluonFR."""
 
+__all__ = ['NormDense', 'SELayer']
+
 from mxnet.gluon import nn
 from mxnet.gluon.nn import HybridBlock
 
