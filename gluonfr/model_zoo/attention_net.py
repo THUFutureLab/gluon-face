@@ -23,6 +23,7 @@
 
 from mxnet.gluon import nn
 from mxnet.gluon.model_zoo.vision.resnet import BottleneckV2
+from ..nn.basic_blocks import NormDense
 
 
 __all__ = ["AttentionNet", "AttentionNetFace",
@@ -253,7 +254,8 @@ class AttentionNetFace(nn.HybridBlock):
 
     """
 
-    def __init__(self, classes, modules, p, t, r, **kwargs):
+    def __init__(self, classes, embedding_size, modules, p, t, r,
+                 weight_norm=False, feature_norm=False, **kwargs):
         super().__init__(**kwargs)
         assert len(modules) == 3
         with self.name_scope():
@@ -287,15 +289,17 @@ class AttentionNetFace(nn.HybridBlock):
             self.features.add(nn.BatchNorm(),
                               nn.Activation('relu'),
                               nn.GlobalAvgPool2D(),
-                              nn.Flatten())
+                              nn.Flatten(),
+                              nn.Dense(embedding_size, use_bias=False),
+                              nn.PReLU()
+                              )
 
             # classes
-            self.output = nn.Dense(classes, use_bias=False)
+            self.output = NormDense(classes, weight_norm, feature_norm, in_units=embedding_size)
 
     def hybrid_forward(self, F, x, *args, **kwargs):
         x = self.features(x)
-        x = self.output(x)
-        return x
+        return x, self.output(x)
 
 
 # Specification ([p, t, r], [stage1, stage2, stage3])
@@ -332,7 +336,7 @@ def get_attention_net(classes, num_layers, **kwargs):
     return net
 
 
-def get_attention_face(classes, num_layers, **kwargs):
+def get_attention_face(classes, num_layers, embedding_size, **kwargs):
     r"""AttentionNet Model for 112x112 face images from
     `"Residual Attention Network for Image Classification"
     <https://arxiv.org/abs/1704.06904>`_ paper.
@@ -350,7 +354,7 @@ def get_attention_face(classes, num_layers, **kwargs):
     ptr, modules = attention_net_spec[num_layers]
     assert len(ptr) == len(modules) == 3
     p, t, r = ptr
-    net = AttentionNetFace(classes, modules, p, t, r, **kwargs)
+    net = AttentionNetFace(classes, embedding_size, modules, p, t, r, **kwargs)
     return net
 
 

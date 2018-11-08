@@ -21,6 +21,7 @@
 # SOFTWARE.
 """"""
 from mxnet.gluon import nn
+from ..nn.basic_blocks import NormDense
 
 __all__ = ["MobileFaceNet",
            "get_mobile_facenet",
@@ -66,7 +67,7 @@ class Bottleneck(nn.HybridBlock):
 
 
 class MobileFaceNet(nn.HybridBlock):
-    def __init__(self, classes=1000, **kwargs):
+    def __init__(self, classes, embedding_size,  weight_norm=False, feature_norm=False,**kwargs):
         super(MobileFaceNet, self).__init__(**kwargs)
         with self.name_scope():
             self.feature = nn.HybridSequential(prefix='feature_')
@@ -82,17 +83,15 @@ class MobileFaceNet(nn.HybridBlock):
 
                 self.feature.add(_make_conv(6, 512),
                                  _make_conv(6, 512, kernel=7, num_group=512, active=False),
-                                 nn.Conv2D(128, 1, use_bias=False),
+                                 nn.Conv2D(embedding_size, 1, use_bias=False),
                                  nn.Flatten())
 
-            self.output = nn.HybridSequential(prefix='output_')
-            with self.output.name_scope():
-                self.output.add(nn.Dense(classes, use_bias=False))
+                # classes
+                self.output = NormDense(classes, weight_norm, feature_norm, in_units=embedding_size)
 
     def hybrid_forward(self, F, x, **kwargs):
         x = self.feature(x)
-        x = self.output(x)
-        return x
+        return x, self.output(x)
 
 
 def get_mobile_facenet(classes, **kwargs):
