@@ -123,6 +123,7 @@ class CosLoss(SoftmaxCrossEntropyLoss):
         - **loss**: loss tensor with shape (batch_size,). Dimensions other than
           batch_axis are averaged out.
     """
+
     def __init__(self, classes, m, s, axis=-1, sparse_label=True, weight=None, batch_axis=0, **kwargs):
         super().__init__(axis=axis, sparse_label=sparse_label, weight=weight, batch_axis=batch_axis, **kwargs)
         self._classes = classes
@@ -160,7 +161,7 @@ class ArcLoss(SoftmaxCrossEntropyLoss):
           batch_axis are averaged out.
     """
 
-    def __init__(self, classes, m=0.5, s=64,  easy_margin=True,
+    def __init__(self, classes, m=0.5, s=64, easy_margin=True,
                  axis=-1, sparse_label=True, weight=None, batch_axis=0, **kwargs):
         super().__init__(axis=axis, sparse_label=sparse_label,
                          weight=weight, batch_axis=batch_axis, **kwargs)
@@ -288,3 +289,77 @@ class RingLoss(SoftmaxCrossEntropyLoss):
         loss_sm = super().hybrid_forward(F, pred, label, sample_weight)
 
         return F.broadcast_add(loss_sm, self._lamda * loss_r)
+
+
+class ASoftmax(SoftmaxCrossEntropyLoss):
+    r"""ASoftmax from
+    `"SphereFace: Deep Hypersphere Embedding for Face Recognition"
+    <https://arxiv.org/pdf/1704.08063.pdf>`_ paper.
+    input(weight, x) has already been normalized
+
+    Parameters
+    ----------
+    classes: int.
+        Number of classes.
+    m: float.
+        Margin parameter for loss.
+    s: int.
+        Scale parameter for loss.
+
+    Outputs:
+        - **loss**: loss tensor with shape (batch_size,). Dimensions other than
+          batch_axis are averaged out.
+    """
+
+    def __init__(self, classes, m, s, axis=-1, phiflag=True,
+                 sparse_label=True, weight=None, batch_axis=0, **kwargs):
+        super().__init__(axis=axis, sparse_label=sparse_label, weight=weight, batch_axis=batch_axis, **kwargs)
+        self._classes = classes
+        self._scale = s
+        self._margin = m
+        self._phiflag = phiflag
+        self.it = 0
+        self.LambdaMin = 5.0
+        self.LambdaMax = 1500.0
+        self.lamb = 1500.0
+        self.mlambda = [
+            lambda x: x ** 0,
+            lambda x: x ** 1,
+            lambda x: 2 * x ** 2 - 1,
+            lambda x: 4 * x ** 3 - 3 * x,
+            lambda x: 8 * x ** 4 - 8 * x ** 2 + 1,
+            lambda x: 16 * x ** 5 - 20 * x ** 3 + 5 * x
+        ]
+
+    def _myphi(x, m):
+        x = x * m
+        return 1 - x ** 2 / math.factorial(2) + x ** 4 / math.factorial(4) - x ** 6 / math.factorial(6) + \
+               x ** 8 / math.factorial(8) - x ** 9 / math.factorial(9)
+
+    def hybrid_forward(self, F, x, label, sample_weight=None):
+        cos_theta = F.clip(x, -1, 1)
+
+        if self._phiflag:
+            cos_m_theta = self.mlambda[int(self._margin)](cos_theta)
+            theta = cos_theta.arccos()
+            k = (self._margin * theta / math.pi).floor()
+            n_one = k * 0.0 - 1
+            phi_theta = (n_one ** k) * cos_m_theta - 2 * k
+        else:
+            theta = cos_theta.arccos()
+            phi_theta = self._myphi(theta, self._margin)
+            phi_theta = phi_theta.clip(-1 * self._margin, 1)
+
+        if self._sparse_label:
+            one_hot_label = F.one_hot(label, depth=self._classes, on_value=1.0, off_value=0.0)
+        else:
+            one_hot_label = label
+
+        self.it += 1
+        self.lamb = max(self.LambdaMin, self.LambdaMax / (1 + 0.1 * self.it))
+        diff = (phi_theta - x) * 1.0 / (1 + self.lamb)
+
+        body = one_hot_label * diff
+        fc7 = (x + body) * self._scale
+
+        return super().hybrid_forward(F, pred=fc7, label=label, sample_weight=sample_weight)
