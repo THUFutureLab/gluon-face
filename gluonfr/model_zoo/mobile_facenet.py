@@ -21,7 +21,7 @@
 # SOFTWARE.
 """"""
 from mxnet.gluon import nn
-from ..nn.basic_blocks import NormDense
+from ..nn.basic_blocks import *
 
 __all__ = ["MobileFaceNet",
            "get_mobile_facenet",
@@ -92,7 +92,7 @@ class MobileFaceNet(nn.HybridBlock):
                                  nn.PReLU(),
                                  nn.Flatten())
 
-            self.output = NormDense(classes, weight_norm=weight_norm, feature_norm=feature_norm,
+            self.output = NormDense(classes, weight_norm, feature_norm,
                                     in_units=embedding_size, prefix='output_')
 
     def hybrid_forward(self, F, x, **kwargs):
@@ -101,5 +101,5 @@ class MobileFaceNet(nn.HybridBlock):
         return embedding, out
 
 
-def get_mobile_facenet(classes, **kwargs):
-    return MobileFaceNet(classes, **kwargs)
+def get_mobile_facenet(classes, embedding_size=512, **kwargs):
+    return MobileFaceNet(classes, embedding_size=embedding_size, **kwargs)

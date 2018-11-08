@@ -296,7 +296,7 @@ class AttentionNetFace(nn.HybridBlock):
                               nn.Flatten())
 
             # classes
-            self.output = NormDense(classes, weight_norm=weight_norm, feature_norm=feature_norm,
+            self.output = NormDense(classes, weight_norm, feature_norm,
                                     in_units=embedding_size, prefix='output_')
 
     def hybrid_forward(self, F, x, *args, **kwargs):
@@ -350,6 +350,8 @@ def get_attention_face(classes, num_layers, embedding_size, **kwargs):
         Number of classification classes.
     num_layers : int
         Numbers of layers. Options are 56, 92, 128, 164, 236, 452.
+    embedding_size: int
+        Feature dimensions of the embedding layers.
     """
     assert num_layers in attention_net_spec, \
         "Invalid number of layers: %d. Options are %s" % (
@@ -357,7 +359,7 @@ def get_attention_face(classes, num_layers, embedding_size, **kwargs):
     ptr, modules = attention_net_spec[num_layers]
     assert len(ptr) == len(modules) == 3
     p, t, r = ptr
-    net = AttentionNetFace(classes, embedding_size, modules, p, t, r, **kwargs)
+    net = AttentionNetFace(classes, modules, p, t, r, embedding_size=embedding_size, **kwargs)
     return net
 
 
