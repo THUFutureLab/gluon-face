@@ -23,7 +23,8 @@
 
 from mxnet.gluon import nn
 from mxnet.gluon.model_zoo.vision.resnet import BottleneckV2
-from gluonfr.nn.basic_blocks import NormDense
+from ..nn.basic_blocks import NormDense
+
 
 __all__ = ["AttentionNet", "AttentionNetFace",
            "get_attention_net", "get_attention_face",
@@ -338,7 +339,7 @@ def get_attention_net(classes, num_layers, **kwargs):
     return net
 
 
-def get_attention_face(classes, num_layers, **kwargs):
+def get_attention_face(classes, num_layers, embedding_size, **kwargs):
     r"""AttentionNet Model for 112x112 face images from
     `"Residual Attention Network for Image Classification"
     <https://arxiv.org/abs/1704.06904>`_ paper.
@@ -356,7 +357,7 @@ def get_attention_face(classes, num_layers, **kwargs):
     ptr, modules = attention_net_spec[num_layers]
     assert len(ptr) == len(modules) == 3
     p, t, r = ptr
-    net = AttentionNetFace(classes, modules, p, t, r, **kwargs)
+    net = AttentionNetFace(classes, embedding_size, modules, p, t, r, **kwargs)
     return net
 
 

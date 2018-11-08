@@ -21,7 +21,7 @@
 # SOFTWARE.
 """"""
 from mxnet.gluon import nn
-from gluonfr.nn.basic_blocks import *
+from ..nn.basic_blocks import NormDense
 
 __all__ = ["MobileFaceNet",
            "get_mobile_facenet",
