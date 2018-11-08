@@ -10,11 +10,10 @@ It's proposed from  ArcFace paper as SE-LResNet.
 __all__ = ['get_se_resnet', 'se_resnet18_v2', 'se_resnet34_v2',
            'se_resnet50_v2', 'se_resnet101_v2', 'se_resnet152_v2']
 
-from mxnet import autograd
 from mxnet.gluon import nn
 from mxnet.gluon.block import HybridBlock
 from mxnet.gluon.model_zoo.vision.resnet import _conv3x3
-from gluonfr.nn.basic_blocks import NormDense, SELayer
+from ..nn.basic_blocks import *
 
 
 class SE_BottleneckV2(HybridBlock):
