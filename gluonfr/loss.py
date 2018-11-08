@@ -297,8 +297,26 @@ def myphi(x, m):
            x ** 8 / math.factorial(8) - x ** 9 / math.factorial(9)
 
 
-# F-Norm SphereFace loss
-class SphereLoss(SoftmaxCrossEntropyLoss):
+
+class ASoftmax(SoftmaxCrossEntropyLoss):
+    r"""ASoftmax from
+    `"SphereFace: Deep Hypersphere Embedding for Face Recognition"
+    <https://arxiv.org/pdf/1704.08063.pdf>`_ paper.
+    input(weight, x) has already been normalized
+
+    Parameters
+    ----------
+    classes: int.
+        Number of classes.
+    m: float.
+        Margin parameter for loss.
+    s: int.
+        Scale parameter for loss.
+
+    Outputs:
+        - **loss**: loss tensor with shape (batch_size,). Dimensions other than
+          batch_axis are averaged out.
+    """
     def __init__(self, classes, m, s, axis=-1, phiflag=True,
                  sparse_label=True, weight=None, batch_axis=0, **kwargs):
         super().__init__(axis=axis, sparse_label=sparse_label, weight=weight, batch_axis=batch_axis, **kwargs)
