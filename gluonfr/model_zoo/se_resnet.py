@@ -94,7 +94,7 @@ class SE_ResNetV2(HybridBlock):
     """
 
     def __init__(self, block, layers, channels, classes=1000, thumbnail=False,
-                 embedding=512, weight_norm=False, feature_norm=False, **kwargs):
+                 embedding_size=512, weight_norm=False, feature_norm=False, **kwargs):
         super(SE_ResNetV2, self).__init__(**kwargs)
         assert len(layers) == len(channels) - 1
         with self.name_scope():
@@ -119,13 +119,12 @@ class SE_ResNetV2(HybridBlock):
             self.features.add(nn.GlobalAvgPool2D())
             self.features.add(nn.Flatten())
 
-            self.embedding_layer = nn.HybridSequential('embedding_')
-            self.embedding_layer.add(nn.Dense(embedding, use_bias=False))
-            self.embedding_layer.add(nn.BatchNorm(scale=False, center=False))
-            self.embedding_layer.add(nn.PReLU())
+            self.features.add(nn.Dense(embedding_size, use_bias=False))
+            self.features.add(nn.BatchNorm(scale=False))
+            self.features.add(nn.PReLU())
 
             self.output = NormDense(classes, weight_norm=weight_norm, feature_norm=feature_norm,
-                                    in_units=embedding)
+                                    in_units=embedding_size)
 
     def _make_layer(self, block, layers, channels, stride, stage_index, in_channels=0):
         layer = nn.HybridSequential(prefix='stage%d_' % stage_index)
@@ -137,13 +136,9 @@ class SE_ResNetV2(HybridBlock):
         return layer
 
     def hybrid_forward(self, F, x):
-        x = self.features(x)
-        emd = self.embedding_layer(x)
-        if autograd.is_training():
-            x = self.output(emd)
-            return x
-        else:
-            return emd
+        emdedding = self.features(x)
+        output = self.output(emdedding)
+        return emdedding, output
 
 
 resnet_spec = {18: (SE_BottleneckV2, [2, 2, 2, 2], [64, 64, 128, 256, 512]),
