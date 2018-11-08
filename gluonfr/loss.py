@@ -291,12 +291,6 @@ class RingLoss(SoftmaxCrossEntropyLoss):
         return F.broadcast_add(loss_sm, self._lamda * loss_r)
 
 
-def myphi(x, m):
-    x = x * m
-    return 1 - x ** 2 / math.factorial(2) + x ** 4 / math.factorial(4) - x ** 6 / math.factorial(6) + \
-           x ** 8 / math.factorial(8) - x ** 9 / math.factorial(9)
-
-
 class ASoftmax(SoftmaxCrossEntropyLoss):
     r"""ASoftmax from
     `"SphereFace: Deep Hypersphere Embedding for Face Recognition"
@@ -337,6 +331,11 @@ class ASoftmax(SoftmaxCrossEntropyLoss):
             lambda x: 16 * x ** 5 - 20 * x ** 3 + 5 * x
         ]
 
+    def _myphi(x, m):
+        x = x * m
+        return 1 - x ** 2 / math.factorial(2) + x ** 4 / math.factorial(4) - x ** 6 / math.factorial(6) + \
+               x ** 8 / math.factorial(8) - x ** 9 / math.factorial(9)
+
     def hybrid_forward(self, F, x, label, sample_weight=None):
         cos_theta = F.clip(x, -1, 1)
 
@@ -348,7 +347,7 @@ class ASoftmax(SoftmaxCrossEntropyLoss):
             phi_theta = (n_one ** k) * cos_m_theta - 2 * k
         else:
             theta = cos_theta.arccos()
-            phi_theta = myphi(theta, self._margin)
+            phi_theta = self._myphi(theta, self._margin)
             phi_theta = phi_theta.clip(-1 * self._margin, 1)
 
         if self._sparse_label:
