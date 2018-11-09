@@ -315,14 +315,13 @@ class RingLoss(SoftmaxCrossEntropyLoss):
     def hybrid_forward(self, F, pred, label, embedding, R, sample_weight=None):
         # RingLoss
         emb_norm = F.norm(embedding, axis=1)
-        loss_r = F.square(F.broadcast_sub(emb_norm, R))
-        loss_r = F.mean(loss_r, keepdims=True) * 0.5
+        loss_r = F.square(F.broadcast_sub(emb_norm, R)) * 0.5
         loss_r = _apply_weighting(F, loss_r, self._weight, sample_weight)
 
         # Softmax
         loss_sm = super().hybrid_forward(F, pred, label, sample_weight)
 
-        return F.broadcast_add(loss_sm, self._lamda * loss_r)
+        return loss_sm + self._lamda * loss_r
 
 
 class ASoftmax(SoftmaxCrossEntropyLoss):
