@@ -13,7 +13,7 @@ __all__ = ['get_se_resnet', 'se_resnet18_v2', 'se_resnet34_v2',
 from mxnet.gluon import nn
 from mxnet.gluon.block import HybridBlock
 from mxnet.gluon.model_zoo.vision.resnet import _conv3x3
-from ..nn.basic_blocks import *
+from ..nn.basic_blocks import FrBase, SELayer
 
 
 class SE_BottleneckV2(HybridBlock):
@@ -73,7 +73,7 @@ class SE_BottleneckV2(HybridBlock):
         return x + residual
 
 
-class SE_ResNetV2(HybridBlock):
+class SE_ResNetV2(FrBase):
     r"""ResNet V2 model from
     `"Identity Mappings in Deep Residual Networks"
     <https://arxiv.org/abs/1603.05027>`_ paper.
@@ -92,9 +92,11 @@ class SE_ResNetV2(HybridBlock):
         Enable thumbnail.
     """
 
-    def __init__(self, block, layers, channels, classes, thumbnail=False,
-                 embedding_size=512, weight_norm=False, feature_norm=False, **kwargs):
-        super(SE_ResNetV2, self).__init__(**kwargs)
+    def __init__(self, block, layers, channels, classes=1000, thumbnail=False,
+                 embedding_size=512, weight_norm=False, feature_norm=False,
+                 need_cls_layer=True, **kwargs):
+        super(SE_ResNetV2, self).__init__(classes, embedding_size, weight_norm,
+                                          feature_norm, need_cls_layer, **kwargs)
         assert len(layers) == len(channels) - 1
         with self.name_scope():
             self.features = nn.HybridSequential(prefix='')
@@ -116,14 +118,11 @@ class SE_ResNetV2(HybridBlock):
             self.features.add(nn.BatchNorm())
             self.features.add(nn.PReLU())
             self.features.add(nn.GlobalAvgPool2D())
-
-            self.features.add(nn.Conv2D(embedding_size, kernel_size=1, use_bias=False))
-            self.features.add(nn.BatchNorm(scale=False, center=False))
-            self.features.add(nn.PReLU())
             self.features.add(nn.Flatten())
 
-            self.output = NormDense(classes, weight_norm=weight_norm, feature_norm=feature_norm,
-                                    in_units=embedding_size, prefix='output_')
+            self.features.add(nn.Dense(embedding_size, use_bias=False))
+            self.features.add(nn.BatchNorm(scale=False, center=False))
+            self.features.add(nn.PReLU())
 
     def _make_layer(self, block, layers, channels, stride, stage_index, in_channels=0):
         layer = nn.HybridSequential(prefix='stage%d_' % stage_index)
@@ -133,11 +132,6 @@ class SE_ResNetV2(HybridBlock):
             for _ in range(layers - 1):
                 layer.add(block(channels, 1, False, in_channels=channels, prefix=''))
         return layer
-
-    def hybrid_forward(self, F, x):
-        emdedding = self.features(x)
-        out = self.output(emdedding)
-        return emdedding, out
 
 
 resnet_spec = {18: (SE_BottleneckV2, [2, 2, 2, 2], [64, 64, 128, 256, 512]),
@@ -253,3 +247,4 @@ def se_resnet152_v2(**kwargs):
         Location for keeping the model parameters.
     """
     return get_se_resnet(152, **kwargs)
+

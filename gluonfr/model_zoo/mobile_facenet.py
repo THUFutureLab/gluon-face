@@ -21,7 +21,7 @@
 # SOFTWARE.
 """"""
 from mxnet.gluon import nn
-from ..nn.basic_blocks import *
+from ..nn.basic_blocks import FrBase, SELayer
 
 __all__ = ["MobileFaceNet",
            "get_mobile_facenet",
@@ -68,37 +68,31 @@ class Bottleneck(nn.HybridBlock):
         return out
 
 
-class MobileFaceNet(nn.HybridBlock):
-    def __init__(self, classes, weight_norm=False, feature_norm=False,
-                 use_se=False, embedding_size=128, **kwargs):
-        super(MobileFaceNet, self).__init__(**kwargs)
+class MobileFaceNet(FrBase):
+    def __init__(self, classes, use_se=False, weight_norm=False,
+                 feature_norm=False, embedding_size=128, need_cls_layer=True, **kwargs):
+        super(MobileFaceNet, self).__init__(classes, embedding_size, weight_norm,
+                                            feature_norm, need_cls_layer, **kwargs)
         with self.name_scope():
-            self.feature = nn.HybridSequential(prefix='feature_')
-            with self.feature.name_scope():
-                self.feature.add(_make_conv(0, 64, kernel=3, stride=2, pad=1),
-                                 _make_conv(0, 64, kernel=3, stride=1, pad=1, num_group=64))
+            self.features = nn.HybridSequential(prefix='feature_')
+            with self.features.name_scope():
+                self.features.add(_make_conv(0, 64, kernel=3, stride=2, pad=1),
+                                  _make_conv(0, 64, kernel=3, stride=1, pad=1, num_group=64))
 
-                self.feature.add(
+                self.features.add(
                     _make_bottleneck(1, layers=5, channels=64, stride=2, t=2, in_channels=64, use_se=use_se),
                     _make_bottleneck(2, layers=1, channels=128, stride=2, t=4, in_channels=64, use_se=use_se),
                     _make_bottleneck(3, layers=6, channels=128, stride=1, t=2, in_channels=128, use_se=use_se),
                     _make_bottleneck(4, layers=1, channels=128, stride=2, t=4, in_channels=128, use_se=use_se),
                     _make_bottleneck(5, layers=2, channels=128, stride=1, t=2, in_channels=128, use_se=use_se))
 
-                self.feature.add(_make_conv(6, 512),
-                                 _make_conv(6, 512, kernel=7, num_group=512, active=False),
-                                 nn.Conv2D(embedding_size, 1, use_bias=False),
-                                 nn.BatchNorm(scale=False, center=False),
-                                 nn.PReLU(),
-                                 nn.Flatten())
+                self.features.add(_make_conv(6, 512),
 
-            self.output = NormDense(classes, weight_norm, feature_norm,
-                                    in_units=embedding_size, prefix='output_')
-
-    def hybrid_forward(self, F, x, **kwargs):
-        embedding = self.feature(x)
-        out = self.output(embedding)
-        return embedding, out
+                                  _make_conv(6, 512, kernel=7, num_group=512, active=False),
+                                  nn.Flatten(),
+                                  nn.Dense(embedding_size, use_bias=False),
+                                  nn.BatchNorm(scale=False, center=False),
+                                  nn.PReLU())
 
 
 def get_mobile_facenet(classes, embedding_size=512, **kwargs):

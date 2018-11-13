@@ -23,7 +23,7 @@
 
 from mxnet.gluon import nn
 from mxnet.gluon.model_zoo.vision.resnet import BottleneckV2
-from ..nn.basic_blocks import NormDense
+from ..nn.basic_blocks import FrBase
 
 
 __all__ = ["AttentionNet", "AttentionNetFace",
@@ -243,7 +243,7 @@ class AttentionNet(nn.HybridBlock):
         return x
 
 
-class AttentionNetFace(nn.HybridBlock):
+class AttentionNetFace(FrBase):
     r"""
     AttentionNet Model for input 112x112.
 
@@ -255,8 +255,9 @@ class AttentionNetFace(nn.HybridBlock):
     """
 
     def __init__(self, classes, modules, p, t, r,
-                 weight_norm=False, feature_norm=False, embedding_size=512, **kwargs):
-        super().__init__(**kwargs)
+                 weight_norm=False, feature_norm=False, embedding_size=512,
+                 need_cls_layer=True, **kwargs):
+        super().__init__(classes, embedding_size, weight_norm, feature_norm, need_cls_layer, **kwargs)
         assert len(modules) == 3
         with self.name_scope():
             self.features = nn.HybridSequential()
@@ -288,21 +289,12 @@ class AttentionNetFace(nn.HybridBlock):
             # 2048
             self.features.add(nn.BatchNorm(),
                               nn.Activation('relu'),
-                              nn.GlobalAvgPool2D())
-            # embedding
-            self.features.add(nn.Conv2D(embedding_size, kernel_size=1, use_bias=False),
-                              nn.BatchNorm(scale=False, center=False),
-                              nn.PReLU(),
+                              nn.GlobalAvgPool2D(),
                               nn.Flatten())
-
-            # classes
-            self.output = NormDense(classes, weight_norm, feature_norm,
-                                    in_units=embedding_size, prefix='output_')
-
-    def hybrid_forward(self, F, x, *args, **kwargs):
-        embedding = self.features(x)
-        out = self.output(embedding)
-        return embedding, out
+            # embedding
+            self.features.add(nn.Dense(embedding_size, use_bias=False),
+                              nn.BatchNorm(scale=False, center=False),
+                              nn.PReLU())
 
 
 # Specification ([p, t, r], [stage1, stage2, stage3])

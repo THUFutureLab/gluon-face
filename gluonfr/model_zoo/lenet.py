@@ -5,10 +5,10 @@
 """This net is proposed form center loss.
 We also use it to test other losses."""
 from mxnet.gluon import nn
-from ..nn.basic_blocks import NormDense
+from ..nn.basic_blocks import FrBase
 
 
-class LeNet_m(nn.HybridBlock):
+class LeNet_m(FrBase):
     r"""LeNet_m model is lenet++ from
     `"A Discriminative Feature Learning Approach for Deep Face Recognition"
     <https://ydwen.github.io/papers/WenECCV16.pdf>`_ paper.
@@ -18,10 +18,10 @@ class LeNet_m(nn.HybridBlock):
     embedding_size : int
         Number units of embedding layer.
     """
-    def __init__(self, embedding_size=2, **kwargs):
-        super().__init__(**kwargs)
-        self.feature = nn.HybridSequential()
-        self.feature.add(
+    def __init__(self, embedding_size=2, weight_norm=True, feature_norm=True, **kwargs):
+        super().__init__(10, embedding_size, weight_norm, feature_norm, **kwargs)
+        self.features = nn.HybridSequential()
+        self.features.add(
             nn.Conv2D(32, 5, padding=2, strides=1),
             nn.PReLU(),
             nn.Conv2D(32, 5, padding=2, strides=1),
@@ -41,9 +41,3 @@ class LeNet_m(nn.HybridBlock):
             nn.Dense(embedding_size, use_bias=False),
             nn.PReLU()
         )
-        self.output = NormDense(10, weight_norm=True, feature_norm=True, in_units=embedding_size)
-
-    def hybrid_forward(self, F, x, *args, **kwargs):
-        embedding = self.feature(x)
-        output = self.output(embedding)
-        return embedding, output

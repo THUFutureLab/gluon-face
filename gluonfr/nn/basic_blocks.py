@@ -21,7 +21,7 @@
 # SOFTWARE.
 """Basic Blocks used in GluonFR."""
 
-__all__ = ['NormDense', 'SELayer']
+__all__ = ['NormDense', 'SELayer', 'FrBase']
 
 from mxnet.gluon import nn
 from mxnet.gluon.nn import HybridBlock
@@ -76,3 +76,48 @@ class SELayer(HybridBlock):
         y = self.avg_pool(x)
         y = self.fc(y)
         return F.broadcast_mul(x, y)
+
+
+class FrBase(nn.HybridBlock):
+    r"""
+    This is base class for all face recognition network.
+    In this class, we defined the NormDense and control flow of the sub classes.
+    In any sub classes, only need to implement features and embedding_layer.
+    Normally we add embedding_layer to features.
+
+    Parameters
+    ----------
+    classes : int
+        Number of classification classes.
+    embedding_size : int
+        Units of embedding layer.
+    weight_norm : bool, default False
+        Whether use weight norm in NormDense layer.
+    feature_norm : bool, default False
+        Whether use features norm in NormDense layer.
+    need_cls_layer : bool, default True
+        Whether use NormDense layer.Normally it depends on your loss function.
+        When you use Softmax, ArcLoss or based on Softmax loss, you need to set it to True.
+        When you only need embedding output, like you are predicting or training with triplet loss,
+        you need to set it to False.
+    """
+    def __init__(self, classes, embedding_size=512, weight_norm=False, feature_norm=False,
+                 need_cls_layer=True, **kwargs):
+        super(FrBase, self).__init__(**kwargs)
+        self.need_cls_layer = need_cls_layer
+        self.features = None
+
+        if need_cls_layer:
+            self.output = NormDense(classes, weight_norm, feature_norm,
+                                    in_units=embedding_size, prefix='output_')
+
+    def hybrid_forward(self, F, x, *args, **kwargs):
+        if self.features is None:
+            raise NotImplementedError
+
+        embedding = self.features(x)
+        if self.need_cls_layer:
+            out = self.output(embedding)
+            return embedding, out
+        else:
+            return embedding
