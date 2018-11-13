@@ -13,7 +13,7 @@ __all__ = ['get_se_resnet', 'se_resnet18_v2', 'se_resnet34_v2',
 from mxnet.gluon import nn
 from mxnet.gluon.block import HybridBlock
 from mxnet.gluon.model_zoo.vision.resnet import _conv3x3
-from ..nn.basic_blocks import FR_Base, SELayer
+from ..nn.basic_blocks import FrBase, SELayer
 
 
 class SE_BottleneckV2(HybridBlock):
@@ -73,7 +73,7 @@ class SE_BottleneckV2(HybridBlock):
         return x + residual
 
 
-class SE_ResNetV2(FR_Base):
+class SE_ResNetV2(FrBase):
     r"""ResNet V2 model from
     `"Identity Mappings in Deep Residual Networks"
     <https://arxiv.org/abs/1603.05027>`_ paper.
@@ -93,9 +93,9 @@ class SE_ResNetV2(FR_Base):
     """
 
     def __init__(self, block, layers, channels, classes=1000, thumbnail=False,
-                 embedding_size=512, weight_norm=False, feature_norm=False, norm_dense=True, **kwargs):
+                 embedding_size=512, weight_norm=False, feature_norm=False, need_cls_layer=True, **kwargs):
         super(SE_ResNetV2, self).__init__(classes, embedding_size, weight_norm,
-                                          feature_norm, norm_dense, **kwargs)
+                                          feature_norm, need_cls_layer, **kwargs)
         assert len(layers) == len(channels) - 1
         with self.name_scope():
             self.features = nn.HybridSequential(prefix='')

@@ -304,7 +304,7 @@ class CenterLoss(SoftmaxCrossEntropyLoss):
         Number of classes.
 
     lamda: float
-        The loss weight enforcing a trade-off between the softmax loss and ring loss.
+        The loss weight enforcing a trade-off between the softmax loss and center loss.
 
     Outputs:
         - **loss**: loss tensor with shape (batch_size,). Dimensions other than

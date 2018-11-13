@@ -21,7 +21,7 @@
 # SOFTWARE.
 """"""
 from mxnet.gluon import nn
-from ..nn.basic_blocks import FR_Base, SELayer
+from ..nn.basic_blocks import FrBase, SELayer
 
 __all__ = ["MobileFaceNet",
            "get_mobile_facenet",
@@ -68,10 +68,10 @@ class Bottleneck(nn.HybridBlock):
         return out
 
 
-class MobileFaceNet(FR_Base):
+class MobileFaceNet(FrBase):
     def __init__(self, classes, use_se=False, weight_norm=False,
-                 feature_norm=False, embedding_size=128, norm_dense=True,  **kwargs):
-        super(MobileFaceNet, self).__init__(classes, embedding_size, weight_norm, feature_norm, norm_dense, **kwargs)
+                 feature_norm=False, embedding_size=128, need_cls_layer=True, **kwargs):
+        super(MobileFaceNet, self).__init__(classes, embedding_size, weight_norm, feature_norm, need_cls_layer, **kwargs)
         with self.name_scope():
             self.features = nn.HybridSequential(prefix='feature_')
             with self.features.name_scope():

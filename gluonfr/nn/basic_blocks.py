@@ -21,7 +21,7 @@
 # SOFTWARE.
 """Basic Blocks used in GluonFR."""
 
-__all__ = ['NormDense', 'SELayer', 'FR_Base']
+__all__ = ['NormDense', 'SELayer', 'FrBase']
 
 from mxnet.gluon import nn
 from mxnet.gluon.nn import HybridBlock
@@ -78,15 +78,36 @@ class SELayer(HybridBlock):
         return F.broadcast_mul(x, y)
 
 
-class FR_Base(nn.HybridBlock):
+class FrBase(nn.HybridBlock):
+    r"""
+    This is base class for all face recognition network.
+    In this class, we defined the NormDense and control flow of the sub classes.
+    In any sub classes, only need to implement features and embedding_layer.
+    Normally we add embedding_layer to features.
+
+    Parameters
+    ----------
+    classes : int
+        Number of classification classes.
+    embedding_size : int
+        Units of embedding layer.
+    weight_norm : bool, default False
+        Whether use weight norm in NormDense layer.
+    feature_norm : bool, default False
+        Whether use features norm in NormDense layer.
+    need_cls_layer : bool, default True
+        Whether use NormDense layer.Normally it depends on your loss function.
+        When you use Softmax, ArcLoss or based on Softmax loss, you need to set it to True.
+        When you only need embedding output, like you are predicting or training with triplet loss,
+        you need to set it to False.
+    """
     def __init__(self, classes, embedding_size=512, weight_norm=False, feature_norm=False,
-                 norm_dense=True, **kwargs):
-        super(FR_Base, self).__init__(**kwargs)
-        self.norm_dense = norm_dense
-        self.feature_norm = feature_norm
+                 need_cls_layer=True, **kwargs):
+        super(FrBase, self).__init__(**kwargs)
+        self.need_cls_layer = need_cls_layer
         self.features = None
 
-        if norm_dense:
+        if need_cls_layer:
             self.output = NormDense(classes, weight_norm, feature_norm,
                                     in_units=embedding_size, prefix='output_')
 
@@ -95,10 +116,8 @@ class FR_Base(nn.HybridBlock):
             raise NotImplementedError
 
         embedding = self.features(x)
-        if self.norm_dense:
+        if self.need_cls_layer:
             out = self.output(embedding)
             return embedding, out
         else:
-            if self.feature_norm:
-                embedding = F.L2Normalization(embedding, mode='instance')
             return embedding

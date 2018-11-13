@@ -23,7 +23,7 @@
 
 from mxnet.gluon import nn
 from mxnet.gluon.model_zoo.vision.resnet import BottleneckV2
-from ..nn.basic_blocks import FR_Base
+from ..nn.basic_blocks import FrBase
 
 
 __all__ = ["AttentionNet", "AttentionNetFace",
@@ -243,7 +243,7 @@ class AttentionNet(nn.HybridBlock):
         return x
 
 
-class AttentionNetFace(FR_Base):
+class AttentionNetFace(FrBase):
     r"""
     AttentionNet Model for input 112x112.
 
@@ -256,8 +256,8 @@ class AttentionNetFace(FR_Base):
 
     def __init__(self, classes, modules, p, t, r,
                  weight_norm=False, feature_norm=False, embedding_size=512,
-                 norm_dense=True, **kwargs):
-        super().__init__(classes, embedding_size, weight_norm, feature_norm, norm_dense, **kwargs)
+                 need_cls_layer=True, **kwargs):
+        super().__init__(classes, embedding_size, weight_norm, feature_norm, need_cls_layer, **kwargs)
         assert len(modules) == 3
         with self.name_scope():
             self.features = nn.HybridSequential()
