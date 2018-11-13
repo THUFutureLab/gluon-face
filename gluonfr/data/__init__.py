@@ -22,6 +22,7 @@
 """This module provides popular face recognition datasets."""
 
 from .dataset import *
+from .dali_utils import *
 
 """
 lfw:
