@@ -23,7 +23,7 @@
 
 from mxnet.gluon import nn
 from mxnet.gluon.model_zoo.vision.resnet import BottleneckV2
-from ..nn.basic_blocks import NormDense
+from ..nn.basic_blocks import FR_Base
 
 
 __all__ = ["AttentionNet", "AttentionNetFace",
@@ -243,7 +243,7 @@ class AttentionNet(nn.HybridBlock):
         return x
 
 
-class AttentionNetFace(nn.HybridBlock):
+class AttentionNetFace(FR_Base):
     r"""
     AttentionNet Model for input 112x112.
 
@@ -256,10 +256,8 @@ class AttentionNetFace(nn.HybridBlock):
 
     def __init__(self, classes, modules, p, t, r,
                  weight_norm=False, feature_norm=False, embedding_size=512,
-                 need_softmax=True, **kwargs):
-        super().__init__(**kwargs)
-        self.need_softmax = need_softmax
-        self.feature_norm = feature_norm
+                 norm_dense=True, **kwargs):
+        super().__init__(classes, embedding_size, weight_norm, feature_norm, norm_dense, **kwargs)
         assert len(modules) == 3
         with self.name_scope():
             self.features = nn.HybridSequential()
@@ -298,20 +296,20 @@ class AttentionNetFace(nn.HybridBlock):
                               nn.BatchNorm(scale=False, center=False),
                               nn.PReLU())
 
-            if need_softmax:
-                # classes
-                self.output = NormDense(classes, weight_norm, feature_norm,
-                                        in_units=embedding_size, prefix='output_')
-
-    def hybrid_forward(self, F, x, *args, **kwargs):
-        embedding = self.features(x)
-        if self.need_softmax:
-            out = self.output(embedding)
-            return embedding, out
-        else:
-            if self.feature_norm:
-                embedding = F.L2Normalization(embedding, mode='instance', name='fc1n')
-            return embedding
+    #         if need_softmax:
+    #             # classes
+    #             self.output = NormDense(classes, weight_norm, feature_norm,
+    #                                     in_units=embedding_size, prefix='output_')
+    #
+    # def hybrid_forward(self, F, x, *args, **kwargs):
+    #     embedding = self.features(x)
+    #     if self.need_softmax:
+    #         out = self.output(embedding)
+    #         return embedding, out
+    #     else:
+    #         if self.feature_norm:
+    #             embedding = F.L2Normalization(embedding, mode='instance', name='fc1n')
+    #         return embedding
 
 
 # Specification ([p, t, r], [stage1, stage2, stage3])

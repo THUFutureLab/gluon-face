@@ -93,9 +93,9 @@ class SE_ResNetV2(FR_Base):
     """
 
     def __init__(self, block, layers, channels, classes=1000, thumbnail=False,
-                 embedding_size=512, weight_norm=False, feature_norm=False, nore_dense=True, **kwargs):
+                 embedding_size=512, weight_norm=False, feature_norm=False, norm_dense=True, **kwargs):
         super(SE_ResNetV2, self).__init__(classes, embedding_size, weight_norm,
-                                          feature_norm, nore_dense, **kwargs)
+                                          feature_norm, norm_dense, **kwargs)
         assert len(layers) == len(channels) - 1
         with self.name_scope():
             self.features = nn.HybridSequential(prefix='')

@@ -80,13 +80,13 @@ class SELayer(HybridBlock):
 
 class FR_Base(nn.HybridBlock):
     def __init__(self, classes, embedding_size=512, weight_norm=False, feature_norm=False,
-                 nore_dense=True, **kwargs):
+                 norm_dense=True, **kwargs):
         super(FR_Base, self).__init__(**kwargs)
-        self.nore_dense = nore_dense
+        self.norm_dense = norm_dense
         self.feature_norm = feature_norm
         self.features = None
 
-        if nore_dense:
+        if norm_dense:
             self.output = NormDense(classes, weight_norm, feature_norm,
                                     in_units=embedding_size, prefix='output_')
 
@@ -95,7 +95,7 @@ class FR_Base(nn.HybridBlock):
             raise NotImplementedError
 
         embedding = self.features(x)
-        if self.nore_dense:
+        if self.norm_dense:
             out = self.output(embedding)
             return embedding, out
         else:
