@@ -21,7 +21,7 @@
 # SOFTWARE.
 """Basic Blocks used in GluonFR."""
 
-__all__ = ['NormDense', 'SELayer']
+__all__ = ['NormDense', 'SELayer', 'FR_Base']
 
 from mxnet.gluon import nn
 from mxnet.gluon.nn import HybridBlock
@@ -76,3 +76,29 @@ class SELayer(HybridBlock):
         y = self.avg_pool(x)
         y = self.fc(y)
         return F.broadcast_mul(x, y)
+
+
+class FR_Base(nn.HybridBlock):
+    def __init__(self, classes, embedding_size=512, weight_norm=False, feature_norm=False,
+                 nore_dense=True, **kwargs):
+        super(FR_Base, self).__init__(**kwargs)
+        self.nore_dense = nore_dense
+        self.feature_norm = feature_norm
+        self.features = None
+
+        if nore_dense:
+            self.output = NormDense(classes, weight_norm, feature_norm,
+                                    in_units=embedding_size, prefix='output_')
+
+    def hybrid_forward(self, F, x, *args, **kwargs):
+        if self.features is None:
+            raise NotImplementedError
+
+        embedding = self.features(x)
+        if self.nore_dense:
+            out = self.output(embedding)
+            return embedding, out
+        else:
+            if self.feature_norm:
+                embedding = F.L2Normalization(embedding, mode='instance')
+            return embedding

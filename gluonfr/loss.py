@@ -288,3 +288,48 @@ class RingLoss(SoftmaxCrossEntropyLoss):
         loss_sm = super().hybrid_forward(F, pred, label, sample_weight)
 
         return F.broadcast_add(loss_sm, self._lamda * loss_r)
+
+
+class CenterLoss(SoftmaxCrossEntropyLoss):
+    """Computes the Center Loss from
+    `"A Discriminative Feature Learning Approach
+    for Deep Face Recognition"
+    <http://ydwen.github.io/papers/WenECCV16.pdf>`_paper.
+    Implement is refer to
+    "https://github.com/ShownX/mxnet-center-loss/blob/master/center_loss.py"
+
+    Parameters
+    ----------
+    classes: int.
+        Number of classes.
+
+    lamda: float
+        The loss weight enforcing a trade-off between the softmax loss and ring loss.
+
+    Outputs:
+        - **loss**: loss tensor with shape (batch_size,). Dimensions other than
+          batch_axis are averaged out.
+
+    """
+
+    def __init__(self, classes, embedding_size, lamda,
+                 weight_initializer=init.Xavier(magnitude=2.24), dtype='float32',
+                 axis=-1, sparse_label=True, weight=None, batch_axis=0, **kwargs):
+
+        super().__init__(axis=axis, sparse_label=sparse_label, weight=weight, batch_axis=batch_axis, **kwargs)
+        self._lmda = lamda
+        self.centers = self.params.get('centers', shape=(classes, embedding_size), init=weight_initializer,
+                                       dtype=dtype, allow_deferred_init=True)
+
+    def hybrid_forward(self, F, label, embedding, centers, sample_weight=None):
+        hist = F.array(np.bincount(label.asnumpy().astype(int)))
+
+        centers_count = F.take(hist, label)
+
+        centers_selected = F.take(centers, label)
+
+        diff = embedding - centers_selected
+
+        loss = self._lmda * 0.5 * F.sum(F.square(diff), 1) / centers_count
+
+        return F.mean(loss, axis=0, exclude=True)
