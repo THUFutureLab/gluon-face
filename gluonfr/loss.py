@@ -160,7 +160,7 @@ class ArcLoss(SoftmaxCrossEntropyLoss):
           batch_axis are averaged out.
     """
 
-    def __init__(self, classes, m=0.5, s=64,  easy_margin=True,
+    def __init__(self, classes, m=0.5, s=64, easy_margin=True,
                  axis=-1, sparse_label=True, weight=None, batch_axis=0, **kwargs):
         super().__init__(axis=axis, sparse_label=sparse_label,
                          weight=weight, batch_axis=batch_axis, **kwargs)
@@ -246,6 +246,41 @@ class TripletLoss(Loss):
         return _apply_weighting(F, loss, self._weight, None)
 
 
+class ContrastiveLoss(Loss):
+    r"""Computes the contrastive loss.
+    This loss encourages the embedding to be close to each other for
+    the samples of the same label and the embedding to be far apart at least
+    by the margin constant for the samples of different labels.
+    See: http://yann.lecun.com/exdb/publis/pdf/hadsell-chopra-lecun-06.pdf
+    Parameters
+    ----------
+    margin: float, default is 1.
+        Margin term in the loss definition.
+
+    Inputs:
+
+        - **anchor**: prediction tensor. Embeddings should be l2 normalized.
+        - **positive**: positive example tensor with arbitrary shape. Must have
+          the same size as anchor. Embeddings should be l2 normalized.
+        - **labels**: array with shape (batch_size,) of
+          binary labels indicating positive vs negative pair.
+
+    Outputs:
+        - **loss**:  loss tensor with shape (batch_size,).Dimensions other than
+          batch_axis are averaged out.
+      """
+
+    def __init__(self, margin=1, weight=None, batch_axis=0, **kwargs):
+        super().__init__(weight, batch_axis, **kwargs)
+        self._margin = margin
+
+    def hybrid_forward(self, F, anchor, positive, labels):
+        positive = _reshape_like(F, positive, anchor)
+        dists = F.norm(F.square(anchor - positive), axis=1)
+        loss = labels * F.square(dists) + (1 - labels) * F.square(F.maximum(self._margin - dists, 0))
+        return _apply_weighting(F, loss, self._weight, None)
+
+
 class RingLoss(SoftmaxCrossEntropyLoss):
     """Computes the Ring Loss from
     `"Ring loss: Convex Feature Normalization for Face Recognition"
@@ -269,7 +304,7 @@ class RingLoss(SoftmaxCrossEntropyLoss):
 
     """
 
-    def __init__(self, lamda, weight_initializer=init.Constant(1.0), dtype='float32',
+    def __init__(self, lamda, weight_initializer=None, dtype='float32',
                  axis=-1, sparse_label=True, weight=None, batch_axis=0, **kwargs):
         super().__init__(axis=axis, sparse_label=sparse_label, weight=weight, batch_axis=batch_axis, **kwargs)
 
@@ -280,14 +315,88 @@ class RingLoss(SoftmaxCrossEntropyLoss):
     def hybrid_forward(self, F, pred, label, embedding, R, sample_weight=None):
         # RingLoss
         emb_norm = F.norm(embedding, axis=1)
-        loss_r = F.square(F.broadcast_sub(emb_norm, R))
-        loss_r = F.mean(loss_r, keepdims=True) * 0.5
+        loss_r = F.square(F.broadcast_sub(emb_norm, R)) * 0.5
         loss_r = _apply_weighting(F, loss_r, self._weight, sample_weight)
 
         # Softmax
         loss_sm = super().hybrid_forward(F, pred, label, sample_weight)
 
-        return F.broadcast_add(loss_sm, self._lamda * loss_r)
+        return loss_sm + self._lamda * loss_r
+
+
+class ASoftmax(SoftmaxCrossEntropyLoss):
+    r"""ASoftmax from
+    `"SphereFace: Deep Hypersphere Embedding for Face Recognition"
+    <https://arxiv.org/pdf/1704.08063.pdf>`_ paper.
+    input(weight, x) has already been normalized
+
+    Parameters
+    ----------
+    classes: int.
+        Number of classes.
+    m: float.
+        Margin parameter for loss.
+    s: int.
+        Scale parameter for loss.
+
+    Outputs:
+        - **loss**: loss tensor with shape (batch_size,). Dimensions other than
+          batch_axis are averaged out.
+    """
+
+    def __init__(self, classes, m, s, axis=-1, phiflag=True,
+                 sparse_label=True, weight=None, batch_axis=0, **kwargs):
+        super().__init__(axis=axis, sparse_label=sparse_label, weight=weight, batch_axis=batch_axis, **kwargs)
+        self._classes = classes
+        self._scale = s
+        self._margin = m
+        self._phiflag = phiflag
+        self.it = 0
+        self.LambdaMin = 5.0
+        self.LambdaMax = 1500.0
+        self.lamb = 1500.0
+        self.mlambda = [
+            lambda x: x ** 0,
+            lambda x: x ** 1,
+            lambda x: 2 * x ** 2 - 1,
+            lambda x: 4 * x ** 3 - 3 * x,
+            lambda x: 8 * x ** 4 - 8 * x ** 2 + 1,
+            lambda x: 16 * x ** 5 - 20 * x ** 3 + 5 * x
+        ]
+
+    @staticmethod
+    def _myphi(x, m):
+        x = x * m
+        return 1 - x ** 2 / math.factorial(2) + x ** 4 / math.factorial(4) - x ** 6 / math.factorial(6) + \
+            x ** 8 / math.factorial(8) - x ** 9 / math.factorial(9)
+
+    def hybrid_forward(self, F, x, label, sample_weight=None):
+        cos_theta = F.clip(x, -1, 1)
+
+        if self._phiflag:
+            cos_m_theta = self.mlambda[int(self._margin)](cos_theta)
+            theta = cos_theta.arccos()
+            k = (self._margin * theta / math.pi).floor()
+            n_one = k * 0.0 - 1
+            phi_theta = (n_one ** k) * cos_m_theta - 2 * k
+        else:
+            theta = cos_theta.arccos()
+            phi_theta = self._myphi(theta, self._margin)
+            phi_theta = phi_theta.clip(-1 * self._margin, 1)
+
+        if self._sparse_label:
+            one_hot_label = F.one_hot(label, depth=self._classes, on_value=1.0, off_value=0.0)
+        else:
+            one_hot_label = label
+
+        self.it += 1
+        self.lamb = max(self.LambdaMin, self.LambdaMax / (1 + 0.1 * self.it))
+        diff = (phi_theta - x) * 1.0 / (1 + self.lamb)
+
+        body = one_hot_label * diff
+        fc7 = (x + body) * self._scale
+
+        return super().hybrid_forward(F, pred=fc7, label=label, sample_weight=sample_weight)
 
 
 class CenterLoss(SoftmaxCrossEntropyLoss):
