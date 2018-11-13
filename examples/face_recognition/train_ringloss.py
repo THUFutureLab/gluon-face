@@ -20,6 +20,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 """"""
+
 import os
 import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), "../.."))
@@ -34,16 +35,14 @@ from mxnet.gluon.data import DataLoader
 
 from gluonfr.loss import *
 from gluonfr.model_zoo import *
-from gluonfr.data import *
-from examples.face_recognition.utils import transform_test, validate
+from gluonfr.data import get_recognition_dataset
+from examples.face_recognition.utils import transform_test, transform_train, validate
 
 
 num_gpu = 4
-num_worker = 8
 ctx = [mx.gpu(i) for i in range(num_gpu)]
-batch_size_per_gpu = 128
-batch_size = batch_size_per_gpu * num_gpu
-
+batch_size = 128 * num_gpu
+num_worker = 24
 save_period = 500
 iters = 200e3
 lr_steps = [60e3, 120e3, 180e3, np.inf]
@@ -56,18 +55,14 @@ lr = 0.1
 momentum = 0.9
 wd = 4e-5
 
-
-train_pipes = [DaliDataset(batch_size=batch_size_per_gpu, num_threads=num_worker,
-                           device_id=i, num_gpu=num_gpu, name="emore") for i in range(num_gpu)]
-train_pipes[0].build()
-size = train_pipes[0].epoch_size("Reader")
-num_classes = train_pipes[0].num_classes
+train_set = get_recognition_dataset("emore", transform=transform_train)
+train_data = DataLoader(train_set, batch_size, shuffle=True, num_workers=num_worker)
 
 targets = ['lfw']
 val_sets = [get_recognition_dataset(name, transform=transform_test) for name in targets]
 val_datas = [DataLoader(dataset, batch_size, num_workers=num_worker) for dataset in val_sets]
 
-net = get_mobile_facenet(num_classes, embedding_size=embedding_size, weight_norm=True)
+net = get_mobile_facenet(train_set.num_classes, embedding_size=embedding_size, weight_norm=True, feature_norm=False)
 net.initialize(init=mx.init.MSRAPrelu(), ctx=ctx)
 net.hybridize(static_alloc=True)
 
@@ -92,16 +87,16 @@ it, epoch = 0, 0
 loss_mtc, acc_mtc = mx.metric.Loss(), mx.metric.Accuracy()
 tic = time.time()
 btic = time.time()
-dali_iter = DALIClassificationIterator(train_pipes, size)
-
 
 while it < iters + 1:
     if it == lr_steps[lr_counter]:
         trainer.set_learning_rate(trainer.learning_rate * 0.1)
         lr_counter += 1
 
-    for batches in tqdm(dali_iter):
-        datas, labels = split_and_load(batches, num_gpu)
+    for batch in tqdm(train_data):
+
+        datas = gluon.utils.split_and_load(batch[0], ctx_list=ctx, batch_axis=0, even_split=False)
+        labels = gluon.utils.split_and_load(batch[1], ctx_list=ctx, batch_axis=0, even_split=False)
 
         with ag.record():
             ots = [net(X) for X in datas]
@@ -120,6 +115,7 @@ while it < iters + 1:
             _, train_loss = loss_mtc.get()
             _, train_acc = acc_mtc.get()
             toc = time.time()
+
             logger.info('\n[epoch % 2d] [it % 3d] train loss: %.6f, train_acc: %.6f | '
                         'speed: %.2f samples/s, time: %.6f' %
                         (epoch, it, train_loss, train_acc, batch_size / (toc - btic), toc - tic))
