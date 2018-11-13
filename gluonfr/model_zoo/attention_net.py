@@ -296,21 +296,6 @@ class AttentionNetFace(FR_Base):
                               nn.BatchNorm(scale=False, center=False),
                               nn.PReLU())
 
-    #         if need_softmax:
-    #             # classes
-    #             self.output = NormDense(classes, weight_norm, feature_norm,
-    #                                     in_units=embedding_size, prefix='output_')
-    #
-    # def hybrid_forward(self, F, x, *args, **kwargs):
-    #     embedding = self.features(x)
-    #     if self.need_softmax:
-    #         out = self.output(embedding)
-    #         return embedding, out
-    #     else:
-    #         if self.feature_norm:
-    #             embedding = F.L2Normalization(embedding, mode='instance', name='fc1n')
-    #         return embedding
-
 
 # Specification ([p, t, r], [stage1, stage2, stage3])
 # The hyper-parameters are based on paper section 4.1. The number of layers can be calculated by 36m+20
