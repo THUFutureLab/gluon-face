@@ -22,7 +22,7 @@ from mxnet import nd, init
 from mxnet.gluon.loss import Loss, SoftmaxCrossEntropyLoss
 
 __all__ = ["SoftmaxCrossEntropyLoss", "ArcLoss", "TripletLoss", "RingLoss", "CosLoss",
-           "L2Softmax", "ASoftmax", "ContrastiveLoss", ]
+           "L2Softmax", "ASoftmax", "CenterLoss", "ContrastiveLoss"]
 numeric_types = (float, int, np.generic)
 
 
@@ -123,7 +123,6 @@ class CosLoss(SoftmaxCrossEntropyLoss):
         - **loss**: loss tensor with shape (batch_size,). Dimensions other than
           batch_axis are averaged out.
     """
-
     def __init__(self, classes, m, s, axis=-1, sparse_label=True, weight=None, batch_axis=0, **kwargs):
         super().__init__(axis=axis, sparse_label=sparse_label, weight=weight, batch_axis=batch_axis, **kwargs)
         self._classes = classes
@@ -178,24 +177,25 @@ class ArcLoss(SoftmaxCrossEntropyLoss):
 
     def hybrid_forward(self, F, pred, label, sample_weight=None, *args, **kwargs):
 
-        cos_t = F.pick(pred, label, axis=1)
+        cos_t = F.pick(pred, label, axis=1)  # cos(theta_yi)
         if self.easy_margin:
             cond = F.Activation(data=cos_t, act_type='relu')
         else:
             cond_v = cos_t - self.threshold
             cond = F.Activation(data=cond_v, act_type='relu')
-        sin_t = 1.0 - F.sqrt(cos_t * cos_t)
-        new_zy = cos_t * self.cos_m - sin_t * self.sin_m
+        sin_t = 1.0 - F.sqrt(cos_t * cos_t)  # sin(theta)
+        new_zy = cos_t * self.cos_m - sin_t * self.sin_m  # cos(theta_yi + m)
         if self.easy_margin:
             zy_keep = cos_t
         else:
-            zy_keep = cos_t - self.mm
+            zy_keep = cos_t - self.mm  # (cos(theta_yi) - sin(pi - m)*m)
         new_zy = F.where(cond, new_zy, zy_keep)
-        diff = new_zy - cos_t
-        diff = F.expand_dims(diff, 1)
-        gt_one_hot = F.one_hot(label, depth=self._classes, on_value=1.0, off_value=0.0)
+        diff = new_zy - cos_t  # cos(theta_yi + m) - cos(theta_yi)
+        diff = F.expand_dims(diff, 1)  # shape=(b, 1)
+        gt_one_hot = F.one_hot(label, depth=self._classes, on_value=1.0, off_value=0.0)  # shape=(b,classes)
         body = F.broadcast_mul(gt_one_hot, diff)
-        pred = (pred + body) * self.s
+        pred = pred + body
+        pred = pred * self.s
 
         return super().hybrid_forward(F, pred=pred, label=label, sample_weight=sample_weight)
 
@@ -397,3 +397,48 @@ class ASoftmax(SoftmaxCrossEntropyLoss):
         fc7 = (x + body) * self._scale
 
         return super().hybrid_forward(F, pred=fc7, label=label, sample_weight=sample_weight)
+
+
+class CenterLoss(SoftmaxCrossEntropyLoss):
+    """Computes the Center Loss from
+    `"A Discriminative Feature Learning Approach
+    for Deep Face Recognition"
+    <http://ydwen.github.io/papers/WenECCV16.pdf>`_paper.
+    Implement is refer to
+    "https://github.com/ShownX/mxnet-center-loss/blob/master/center_loss.py"
+
+    Parameters
+    ----------
+    classes: int.
+        Number of classes.
+
+    lamda: float
+        The loss weight enforcing a trade-off between the softmax loss and center loss.
+
+    Outputs:
+        - **loss**: loss tensor with shape (batch_size,). Dimensions other than
+          batch_axis are averaged out.
+
+    """
+
+    def __init__(self, classes, embedding_size, lamda,
+                 weight_initializer=init.Xavier(magnitude=2.24), dtype='float32',
+                 axis=-1, sparse_label=True, weight=None, batch_axis=0, **kwargs):
+
+        super().__init__(axis=axis, sparse_label=sparse_label, weight=weight, batch_axis=batch_axis, **kwargs)
+        self._lmda = lamda
+        self.centers = self.params.get('centers', shape=(classes, embedding_size), init=weight_initializer,
+                                       dtype=dtype, allow_deferred_init=True)
+
+    def hybrid_forward(self, F, label, embedding, centers, sample_weight=None):
+        hist = F.array(np.bincount(label.asnumpy().astype(int)))
+
+        centers_count = F.take(hist, label)
+
+        centers_selected = F.take(centers, label)
+
+        diff = embedding - centers_selected
+
+        loss = self._lmda * 0.5 * F.sum(F.square(diff), 1) / centers_count
+
+        return F.mean(loss, axis=0, exclude=True)
