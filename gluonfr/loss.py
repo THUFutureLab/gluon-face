@@ -22,7 +22,7 @@ from mxnet import nd, init
 from mxnet.gluon.loss import Loss, SoftmaxCrossEntropyLoss
 
 __all__ = ["SoftmaxCrossEntropyLoss", "ArcLoss", "TripletLoss", "RingLoss", "CosLoss",
-           "L2Softmax", ]
+           "L2Softmax", "ASoftmax", "CenterLoss", "ContrastiveLoss"]
 numeric_types = (float, int, np.generic)
 
 

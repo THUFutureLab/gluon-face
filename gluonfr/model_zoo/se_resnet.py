@@ -93,7 +93,8 @@ class SE_ResNetV2(FrBase):
     """
 
     def __init__(self, block, layers, channels, classes=1000, thumbnail=False,
-                 embedding_size=512, weight_norm=False, feature_norm=False, need_cls_layer=True, **kwargs):
+                 embedding_size=512, weight_norm=False, feature_norm=False,
+                 need_cls_layer=True, **kwargs):
         super(SE_ResNetV2, self).__init__(classes, embedding_size, weight_norm,
                                           feature_norm, need_cls_layer, **kwargs)
         assert len(layers) == len(channels) - 1
