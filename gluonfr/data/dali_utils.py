@@ -19,7 +19,8 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
-""""""
+"""Use Nvidia Data Loading Library as data provider, this is useful when cpu
+cores cannot match gpu nums using Gluon Dataloader."""
 import os
 import mxnet as mx
 import nvidia.dali.ops as ops
@@ -31,14 +32,29 @@ __all__ = ["split_and_load", "DaliDataset", "DALIClassificationIterator"]
 
 
 def split_and_load(batch_data, num_gpus):
+    """Splits Batch from Dali Iterator into `len(ctx_list)` slices and loads
+    each slice to one context `mx.gpu(i)`.
+
+    Parameters
+    ----------
+    batch_data : NDArray
+        A batch of data.
+    num_gpus : int
+        Num of Gpu for computing.
+
+    Returns
+    -------
+    list of NDArray, list of Labels
+        Each corresponds to a context in `ctx_list`.
+    """
     return [batch_data[i].data[0] for i in range(num_gpus)], \
            [batch_data[i].label[0].as_in_context(mx.gpu(i)) for i in range(num_gpus)]
 
 
 class DaliDataset(Pipeline):
-    def __init__(self, batch_size, num_threads, device_id, name, num_gpu,
-                 root=os.path.expanduser('~/.mxnet/datasets/face'), ):
-        super().__init__(batch_size, num_threads, device_id, seed=12 + device_id)
+    def __init__(self, name, batch_size, num_workers, device_id, num_gpu,
+                 root=os.path.expanduser('~/.mxnet/datasets/face')):
+        super().__init__(batch_size, num_workers, device_id, seed=12 + device_id)
 
         idx_files = [os.path.join(root, name, "train.idx")]
         rec_files = [os.path.join(root, name, "train.rec")]
@@ -51,13 +67,9 @@ class DaliDataset(Pipeline):
                                       num_shards=num_gpu, tensor_init_bytes=self.image_size[0] * self.image_size[1] * 8)
         self._decode = ops.nvJPEGDecoder(device="mixed", output_type=types.RGB)
 
-        self._cmnp = ops.CropMirrorNormalize(device="gpu",
-                                             output_dtype=types.FLOAT,
-                                             output_layout=types.NCHW,
-                                             crop=self.image_size,
-                                             image_type=types.RGB,
-                                             mean=[127.5, 127.5, 127.5],
-                                             std=[127.5, 127.5, 127.5])
+        self._cmnp = ops.CropMirrorNormalize(device="gpu", output_dtype=types.FLOAT, output_layout=types.NCHW,
+                                             crop=self.image_size, image_type=types.RGB,
+                                             mean=[127.5, 127.5, 127.5], std=[127.5, 127.5, 127.5])
         self._contrast = ops.Contrast(device="gpu", )
         self._saturation = ops.Saturation(device="gpu", )
         self._brightness = ops.Brightness(device="gpu", )
