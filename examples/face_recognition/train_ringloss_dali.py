@@ -39,9 +39,9 @@ from examples.face_recognition.utils import transform_test, validate
 
 
 num_gpu = 4
-num_worker = 8
+num_worker = 12
 ctx = [mx.gpu(i) for i in range(num_gpu)]
-batch_size_per_gpu = 128
+batch_size_per_gpu = 160
 batch_size = batch_size_per_gpu * num_gpu
 
 save_period = 500
@@ -49,15 +49,15 @@ iters = 200e3
 lr_steps = [60e3, 120e3, 180e3, np.inf]
 
 lamda = 0.01
-r_init = 10.0
-embedding_size = 256
+r_init = 20.0
+embedding_size = 128
 
 lr = 0.1
 momentum = 0.9
 wd = 4e-5
 
 
-train_pipes = [DaliDataset(batch_size=batch_size_per_gpu, num_threads=num_worker,
+train_pipes = [DaliDataset(batch_size=batch_size_per_gpu, num_workers=num_worker,
                            device_id=i, num_gpu=num_gpu, name="emore") for i in range(num_gpu)]
 train_pipes[0].build()
 size = train_pipes[0].epoch_size("Reader")
@@ -134,3 +134,4 @@ while it < iters + 1:
         btic = time.time()
         it += 1
     epoch += 1
+    dali_iter.reset()
