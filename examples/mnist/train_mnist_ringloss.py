@@ -29,7 +29,7 @@ from gluonfr.loss import RingLoss
 from mxnet.gluon.data.vision import MNIST
 from mxnet import nd, gluon, metric as mtc, autograd as ag
 
-from examples.mnist.net.mnist_net import MnistNet
+from examples.mnist.net.lenet import LeNetPlus
 from examples.mnist.utils import plot_result, transform_val, transform_train
 
 os.environ['MXNET_GLUON_REPO'] = 'https://apache-mxnet.s3.cn-north-1.amazonaws.com.cn/'
@@ -86,9 +86,8 @@ def train():
     val_set = MNIST(train=False, transform=transform_val)
     val_data = gluon.data.DataLoader(val_set, batch_size, shuffle=False, num_workers=4)
 
-    net = MnistNet(embedding_size=2, feature_norm=False, weight_norm=True)
+    net = LeNetPlus(embedding_size=2, feature_norm=False, weight_norm=True)
     net.initialize(init=mx.init.MSRAPrelu(), ctx=ctx)
-    # net.load_parameters("./pretrained_mnist.params", ctx=ctx)
     net.hybridize()
 
     loss = RingLoss(lamda)
@@ -150,8 +149,8 @@ def train():
         if plot:
             ebs, lbs = np.vstack(ebs), np.hstack(lbs)
 
-            plot_result(ebs, lbs, os.path.join("../resources", "ringloss-train-epoch{}.png".format(epoch)))
-            plot_result(val_ebs, val_lbs, os.path.join("../resources", "ringloss-val-epoch{}.png".format(epoch)))
+            plot_result(ebs, lbs, os.path.join("../../resources", "ringloss-train-epoch{}.png".format(epoch)))
+            plot_result(val_ebs, val_lbs, os.path.join("../../resources", "ringloss-val-epoch{}.png".format(epoch)))
 
         toc = time.time()
         print('[epoch % 3d] train accuracy: %.6f, train loss: %.6f | '

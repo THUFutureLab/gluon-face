@@ -5,11 +5,11 @@
 """This net is proposed form center loss.
 We also use it to test other losses."""
 from mxnet.gluon import nn
-from ..nn.basic_blocks import FrBase
+from gluonfr.nn.basic_blocks import FrBase
 
 
-class LeNet_m(FrBase):
-    r"""LeNet_m model is lenet++ from
+class LeNetPlus(FrBase):
+    r"""LeNetPlus model is lenet++ from
     `"A Discriminative Feature Learning Approach for Deep Face Recognition"
     <https://ydwen.github.io/papers/WenECCV16.pdf>`_ paper.
 

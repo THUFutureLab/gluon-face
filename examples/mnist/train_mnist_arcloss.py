@@ -28,7 +28,7 @@ import numpy as np
 from gluonfr.loss import ArcLoss
 from mxnet.gluon.data.vision import MNIST
 from mxnet import nd, gluon, metric as mtc, autograd as ag
-from examples.mnist.net.mnist_net import MnistNet
+from examples.mnist.net.lenet import LeNetPlus
 from examples.mnist.utils import transform_train, transform_val, plot_result
 
 os.environ['MXNET_GLUON_REPO'] = 'https://apache-mxnet.s3.cn-north-1.amazonaws.com.cn/'
@@ -86,7 +86,7 @@ def train():
     val_set = MNIST(train=False, transform=transform_val)
     val_data = gluon.data.DataLoader(val_set, batch_size, shuffle=False, num_workers=4)
 
-    net = MnistNet(embedding_size=2, feature_norm=True, weight_norm=True)
+    net = LeNetPlus(embedding_size=2, feature_norm=True, weight_norm=True)
     net.initialize(init=mx.init.MSRAPrelu(), ctx=ctx)
     # net.load_parameters("./pretrained_mnist.params", ctx=ctx)
     net.hybridize()
