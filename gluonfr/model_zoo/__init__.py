@@ -22,5 +22,4 @@
 """ Models for face recognition"""
 from .mobile_facenet import *
 from .attention_net import *
-from .lenet import *
 from .se_resnet import *
