@@ -29,6 +29,26 @@ __all__ = ["FaceVerification"]
 
 
 class FaceVerification(mx.metric.EvalMetric):
+    """ Compute confusion matrix of 1:1 problem in face verification or other fields.
+    Use update() to collect the outputs and compute distance in each batch, then use get() to compute the
+    confusion matrix and accuracy of the val dataset.
+
+    Parameters
+    ----------
+    nfolds: int, default is 10
+
+    thresholds: ndarray, default is None.
+        Use np.arange to generate thresholds. If thresholds=None, np.arange(0, 2, 0.01) will be used for
+        euclidean distance.
+
+    far_target: float, default is 1e-3.
+        This is used to get the verification accuracy of expected far.
+
+    dist_type: int, default is 0.
+        Option value is {0, 1}, 0 for euclidean distance, 1 for cosine similarity. Here for cosine distance,
+        we use `1 - cosine` as the final distances.
+
+    """
 
     def __init__(self, nfolds=10, thresholds=None, far_target=1e-3, dist_type=0):
         super().__init__("FaceVerification")
@@ -36,8 +56,10 @@ class FaceVerification(mx.metric.EvalMetric):
         self._nfolds = nfolds
         self._dists = []
         self._issame = []
-        self._thresholds = thresholds if thresholds is not None else np.arange(0, 2, 0.01)
+        default_thresholds = np.arange(0, 2, 0.01) if dist_type == 0 else np.arange(0, 1, 0.01)
+        self._thresholds = thresholds if thresholds is not None else default_thresholds
         self.reset()
+        self._dist_type = dist_type
 
     # noinspection PyMethodOverriding
     def update(self, labels: mx.nd.NDArray, embeddings0: mx.nd.NDArray, embeddings1: mx.nd.NDArray):
@@ -53,10 +75,14 @@ class FaceVerification(mx.metric.EvalMetric):
         embeddings1 = embeddings1.asnumpy() if not isinstance(embeddings1, np.ndarray) else embeddings1
         labels = labels.asnumpy() if not isinstance(labels, np.ndarray) else labels
 
-        diff = np.subtract(embeddings0, embeddings1)
-        dists = np.sqrt(np.sum(np.square(diff), 1))
-        self._dists += [d for d in dists]
+        if self._dist_type == 0:
+            diff = np.subtract(embeddings0, embeddings1)
+            dists = np.sqrt(np.sum(np.square(diff), 1))
+        else:
+            dists = 1 - np.sum(np.multiply(embeddings0, embeddings1), axis=1) / \
+                    (np.linalg.norm(embeddings0, axis=1) * np.linalg.norm(embeddings1, axis=1))
 
+        self._dists += [d for d in dists]
         self._issame += [l for l in labels]
 
     def get(self):
@@ -109,8 +135,8 @@ def calculate_roc(thresholds, dist, actual_issame, nrof_folds=10):
         best_threshold_index = np.argmax(acc_train)
         for threshold_idx, threshold in enumerate(thresholds):
             tprs[fold_idx, threshold_idx], \
-                fprs[fold_idx, threshold_idx], _ = calculate_accuracy(threshold, dist[test_set],
-                                                                      actual_issame[test_set])
+            fprs[fold_idx, threshold_idx], _ = calculate_accuracy(threshold, dist[test_set],
+                                                                  actual_issame[test_set])
         _, _, accuracy[fold_idx] = calculate_accuracy(thresholds[best_threshold_index], dist[test_set],
                                                       actual_issame[test_set])
 
