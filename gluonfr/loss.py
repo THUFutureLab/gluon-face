@@ -1,3 +1,7 @@
+# MIT License
+#
+# Copyright (c) 2018 Haoxintong
+#
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
 # in the Software without restriction, including without limitation the rights
@@ -22,7 +26,7 @@ from mxnet import nd, init
 from mxnet.gluon.loss import Loss, SoftmaxCrossEntropyLoss
 
 __all__ = ["SoftmaxCrossEntropyLoss", "ArcLoss", "TripletLoss", "RingLoss", "CosLoss",
-           "L2Softmax", "ASoftmax", "CenterLoss", "ContrastiveLoss"]
+           "L2Softmax", "ASoftmax", "CenterLoss", "ContrastiveLoss", "LGMLoss"]
 numeric_types = (float, int, np.generic)
 
 
@@ -123,6 +127,7 @@ class CosLoss(SoftmaxCrossEntropyLoss):
         - **loss**: loss tensor with shape (batch_size,). Dimensions other than
           batch_axis are averaged out.
     """
+
     def __init__(self, classes, m, s, axis=-1, sparse_label=True, weight=None, batch_axis=0, **kwargs):
         super().__init__(axis=axis, sparse_label=sparse_label, weight=weight, batch_axis=batch_axis, **kwargs)
         self._classes = classes
@@ -401,10 +406,9 @@ class ASoftmax(SoftmaxCrossEntropyLoss):
 
 class CenterLoss(SoftmaxCrossEntropyLoss):
     """Computes the Center Loss from
-    `"A Discriminative Feature Learning Approach
-    for Deep Face Recognition"
+    `"A Discriminative Feature Learning Approach for Deep Face Recognition"
     <http://ydwen.github.io/papers/WenECCV16.pdf>`_paper.
-    Implement is refer to
+    Implementation is refer to
     "https://github.com/ShownX/mxnet-center-loss/blob/master/center_loss.py"
 
     Parameters
@@ -424,7 +428,6 @@ class CenterLoss(SoftmaxCrossEntropyLoss):
     def __init__(self, classes, embedding_size, lamda,
                  weight_initializer=init.Xavier(magnitude=2.24), dtype='float32',
                  axis=-1, sparse_label=True, weight=None, batch_axis=0, **kwargs):
-
         super().__init__(axis=axis, sparse_label=sparse_label, weight=weight, batch_axis=batch_axis, **kwargs)
         self._lmda = lamda
         self.centers = self.params.get('centers', shape=(classes, embedding_size), init=weight_initializer,
@@ -442,3 +445,61 @@ class CenterLoss(SoftmaxCrossEntropyLoss):
         loss = self._lmda * 0.5 * F.sum(F.square(diff), 1) / centers_count
 
         return F.mean(loss, axis=0, exclude=True)
+
+
+class LGMLoss(Loss):
+    """LGM Loss from
+    `"Rethinking Feature Distribution for Loss Functions in Image Classification"
+    <https://arxiv.org/abs/1803.02988>`_paper.
+    Implementation is refer to
+    https://github.com/LeeJuly30/L-GM-Loss-For-Gluon/blob/master/L_GM.py
+
+    Parameters
+    ----------
+    num_classes: int.
+        The num of classes.
+    embedding_size: int.
+        The size of embedding feature.
+    alpha: float.
+        A non-negative parameter controlling the size of the expected margin between
+        two classes on the training set.
+    lamda: float.
+        A non-negative weighting coefficient.
+    lr_mult: float.
+        Var updating need a relatively low learning rate compared to the overall learning rate.
+    """
+
+    def __init__(self, num_classes, embedding_size, alpha, lamda, lr_mult, **kwargs):
+        super().__init__(weight=None, batch_axis=0, **kwargs)
+        self._num_class = num_classes
+        self._feature_dim = embedding_size
+        self._alpha = alpha
+        self._lamda = lamda
+        self.mean = self.params.get('mean', shape=(num_classes, embedding_size), init=init.Xavier())
+        self.var = self.params.get('var', shape=(num_classes, embedding_size), init=init.Constant(1), lr_mult=lr_mult)
+
+    def _classification_probability(self, F, x, y, mean, var):
+        reshape_var = F.reshape(var, (-1, 1, self._feature_dim))
+        reshape_mean = F.reshape(mean, (-1, 1, self._feature_dim))
+        x = F.expand_dims(x, 0)
+        x = F.broadcast_minus(x, reshape_mean)
+        d_z = F.elemwise_mul(F.broadcast_div(x, (reshape_var + 1e-8)), x)
+        d_z = F.transpose(F.sum(d_z, axis=2) / 2)
+
+        oh_label = F.one_hot(y, self._num_class)
+        mask = oh_label * self._alpha + 1
+        margin_d_z = d_z * mask
+        probability = F.broadcast_div(F.exp(-margin_d_z), (F.sqrt(F.prod(var, 1)) + 1e-8))
+        return probability, d_z
+
+    def hybrid_forward(self, F, x, label, mean, var):
+        probability, m_distance = self._classification_probability(F, x, label, mean, var)
+
+        # classification loss
+        class_probability = F.pick(probability, label, axis=1)
+        loss_cls = -F.log(class_probability / (F.sum(probability, 1) + 1e-8) + 1e-8)
+
+        # likehood loss
+        loss_lkd = F.pick(m_distance, label, axis=1)
+        l_gm_loss = loss_cls + self._lamda * loss_lkd
+        return l_gm_loss, probability
