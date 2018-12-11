@@ -29,7 +29,7 @@ from gluonfr.loss import RingLoss
 from mxnet.gluon.data.vision import MNIST
 from mxnet import nd, gluon, metric as mtc, autograd as ag
 
-from examples.mnist.net.lenet import LeNetPlus
+from examples.mnist.net.mnist_net import MnistNet
 from examples.mnist.utils import plot_result, transform_val, transform_train
 
 os.environ['MXNET_GLUON_REPO'] = 'https://apache-mxnet.s3.cn-north-1.amazonaws.com.cn/'
@@ -86,12 +86,12 @@ def train():
     val_set = MNIST(train=False, transform=transform_val)
     val_data = gluon.data.DataLoader(val_set, batch_size, shuffle=False, num_workers=4)
 
-    net = LeNetPlus(embedding_size=2, feature_norm=False, weight_norm=True)
+    net = MnistNet(embedding_size=2, feature_norm=False, weight_norm=True)
     net.initialize(init=mx.init.MSRAPrelu(), ctx=ctx)
     net.hybridize()
 
     loss = RingLoss(lamda)
-    loss.initialize(ctx=ctx)
+    loss.initialize(init=mx.initializer.Constant(1), ctx=ctx)
     loss.hybridize()
 
     train_params = net.collect_params()
