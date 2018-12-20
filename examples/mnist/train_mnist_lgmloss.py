@@ -28,6 +28,7 @@ import numpy as np
 from gluonfr.loss import LGMLoss
 from mxnet.gluon.data.vision import MNIST
 from mxnet import nd, gluon, metric as mtc, autograd as ag
+from gluoncv.utils import LRScheduler
 
 from examples.mnist.net.mnist_net import MnistNet
 from examples.mnist.utils import plot_result, transform_val, transform_train
@@ -71,11 +72,10 @@ def train():
 
     lr = 0.01
 
-    lr_steps = [40, 70, np.inf]
     momentum = 0.9
     wd = 5e-4
 
-    plot_period = 5
+    plot_period = 20
 
     ctx = [mx.gpu(i) for i in range(2)]
     batch_size = 256
@@ -89,23 +89,22 @@ def train():
     net.initialize(init=mx.init.MSRAPrelu(), ctx=ctx)
     net.hybridize()
 
-    loss = LGMLoss(10, 2, 0.1, 0.2, 0.06)
+    loss = LGMLoss(10, 2, 0.2, 0.1, 0.06)
     loss.initialize(ctx=ctx)
     loss.hybridize()
 
+    num_batches = len(train_set) // batch_size
     train_params = net.collect_params()
     train_params.update(loss.params)
-    trainer = gluon.Trainer(train_params, 'sgd', {'learning_rate': lr, 'momentum': momentum, 'wd': wd})
 
-    lr_counter = 0
+    lr_scheduler = LRScheduler("cosine", lr,  niters=num_batches, nepochs=epochs, targetlr=1e-8,
+                               warmup_epochs=10, warmup_lr=0.001)
+    trainer = gluon.Trainer(train_params, 'nag', {'lr_scheduler': lr_scheduler, 'momentum': momentum, 'wd': wd})
 
     metric = mtc.Accuracy()
     num_batch = len(train_data)
 
-    for epoch in range(epochs + 1):
-        if epoch == lr_steps[lr_counter]:
-            trainer.set_learning_rate(trainer.learning_rate * 0.1)
-            lr_counter += 1
+    for epoch in range(epochs):
 
         plot = True if (epoch % plot_period) == 0 else False
 
@@ -114,7 +113,7 @@ def train():
         tic = time.time()
         ebs, lbs = [], []
 
-        for batch in train_data:
+        for i, batch in enumerate(train_data):
             data = gluon.utils.split_and_load(batch[0], ctx_list=ctx, batch_axis=0, even_split=False)
             labels = gluon.utils.split_and_load(batch[1], ctx_list=ctx, batch_axis=0, even_split=False)
 
@@ -134,6 +133,7 @@ def train():
                         ebs.append(es[idx].asnumpy())
                         lbs.append(ls[idx].asscalar())
 
+            lr_scheduler.update(i, epoch)
             trainer.step(batch_size)
             metric.update(labels, outputs)
 
@@ -154,9 +154,6 @@ def train():
 
             plot_result(ebs, lbs, os.path.join("../../resources", "LGMloss-train-epoch{}.png".format(epoch)))
             plot_result(val_ebs, val_lbs, os.path.join("../../resources", "LGMloss-val-epoch{}.png".format(epoch)))
-
-        # if epoch == 10:
-        #     net.save_parameters("./pretrained_mnist.params")
 
 
 if __name__ == '__main__':
