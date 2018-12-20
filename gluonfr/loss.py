@@ -165,7 +165,7 @@ class ArcLoss(SoftmaxCrossEntropyLoss):
           batch_axis are averaged out.
     """
 
-    def __init__(self, classes, m=0.5, s=64, easy_margin=True,
+    def __init__(self, classes, m=0.5, s=64,
                  axis=-1, sparse_label=True, weight=None, batch_axis=0, **kwargs):
         super().__init__(axis=axis, sparse_label=sparse_label,
                          weight=weight, batch_axis=batch_axis, **kwargs)
@@ -178,22 +178,17 @@ class ArcLoss(SoftmaxCrossEntropyLoss):
         self.mm = math.sin(math.pi - m) * m
         self.threshold = math.cos(math.pi - m)
         self._classes = classes
-        self.easy_margin = easy_margin
 
     def hybrid_forward(self, F, pred, label, sample_weight=None, *args, **kwargs):
 
         cos_t = F.pick(pred, label, axis=1)  # cos(theta_yi)
-        if self.easy_margin:
-            cond = F.Activation(data=cos_t, act_type='relu')
-        else:
-            cond_v = cos_t - self.threshold
-            cond = F.Activation(data=cond_v, act_type='relu')
+
+        cond_v = cos_t - self.threshold
+        cond = F.Activation(data=cond_v, act_type='relu')
         sin_t = 1.0 - F.sqrt(cos_t * cos_t)  # sin(theta)
         new_zy = cos_t * self.cos_m - sin_t * self.sin_m  # cos(theta_yi + m)
-        if self.easy_margin:
-            zy_keep = cos_t
-        else:
-            zy_keep = cos_t - self.mm  # (cos(theta_yi) - sin(pi - m)*m)
+
+        zy_keep = cos_t - self.mm  # (cos(theta_yi) - sin(pi - m)*m)
         new_zy = F.where(cond, new_zy, zy_keep)
         diff = new_zy - cos_t  # cos(theta_yi + m) - cos(theta_yi)
         diff = F.expand_dims(diff, 1)  # shape=(b, 1)
@@ -433,18 +428,16 @@ class CenterLoss(SoftmaxCrossEntropyLoss):
         self.centers = self.params.get('centers', shape=(classes, embedding_size), init=weight_initializer,
                                        dtype=dtype, allow_deferred_init=True)
 
-    def hybrid_forward(self, F, label, embedding, centers, sample_weight=None):
+    def hybrid_forward(self, F, x, label, embeddings, centers, sample_weight=None):
         hist = F.array(np.bincount(label.asnumpy().astype(int)))
 
         centers_count = F.take(hist, label)
-
         centers_selected = F.take(centers, label)
+        loss_c = self._lmda * 0.5 * F.sum(F.square(embeddings - centers_selected), 1) / centers_count
 
-        diff = embedding - centers_selected
-
-        loss = self._lmda * 0.5 * F.sum(F.square(diff), 1) / centers_count
-
-        return F.mean(loss, axis=0, exclude=True)
+        # Softmax
+        loss_sm = super().hybrid_forward(F, x, label, sample_weight)
+        return loss_sm + loss_c
 
 
 class LGMLoss(Loss):
@@ -478,7 +471,7 @@ class LGMLoss(Loss):
         self.mean = self.params.get('mean', shape=(num_classes, embedding_size), init=init.Xavier())
         self.var = self.params.get('var', shape=(num_classes, embedding_size), init=init.Constant(1), lr_mult=lr_mult)
 
-    def _classification_probability(self, F, x, y, mean, var):
+    def _classification_probability(self, F, x, label, mean, var):
         reshape_var = F.reshape(var, (-1, 1, self._feature_dim))
         reshape_mean = F.reshape(mean, (-1, 1, self._feature_dim))
         x = F.expand_dims(x, 0)
@@ -486,8 +479,7 @@ class LGMLoss(Loss):
         d_z = F.elemwise_mul(F.broadcast_div(x, (reshape_var + 1e-8)), x)
         d_z = F.transpose(F.sum(d_z, axis=2) / 2)
 
-        oh_label = F.one_hot(y, self._num_class)
-        mask = oh_label * self._alpha + 1
+        mask = F.one_hot(label, self._num_class) * self._alpha + 1
         margin_d_z = d_z * mask
         probability = F.broadcast_div(F.exp(-margin_d_z), (F.sqrt(F.prod(var, 1)) + 1e-8))
         return probability, d_z
