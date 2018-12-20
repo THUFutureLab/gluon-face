@@ -26,7 +26,7 @@ from mxnet import nd, init
 from mxnet.gluon.loss import Loss, SoftmaxCrossEntropyLoss
 
 __all__ = ["SoftmaxCrossEntropyLoss", "ArcLoss", "TripletLoss", "RingLoss", "CosLoss",
-           "L2Softmax", "ASoftmax", "CenterLoss", "ContrastiveLoss", "LGMLoss"]
+           "L2Softmax", "ASoftmax", "CenterLoss", "ContrastiveLoss", "LGMLoss", "MPSLoss"]
 numeric_types = (float, int, np.generic)
 
 
@@ -576,3 +576,63 @@ class RangeLoss(Loss):
         intra_class_loss = self._intra_class_loss(F, x, y)
         range_loss = self._alpha * inter_class_loss + self._beta * intra_class_loss
         return range_loss
+
+class MPSLoss(Loss):
+    """Computes the MPS Loss from
+    `"DocFace: Matching ID Document Photos to Selfies"
+    <https://arxiv.org/abs/1805.02283>`_paper.
+
+    Parameters
+    ----------
+    m: float
+        Margin parameter for loss.
+
+    Outputs:
+        - **loss**: loss tensor with shape (batch_size,). Dimensions other than
+          batch_axis are averaged out.
+    """
+
+    def __init__(self, m = 1.0, **kwargs):
+        super().__init__(weight=None, batch_axis=0, **kwargs)
+        self.m = m
+
+    @staticmethod
+    def euclidean_distance(F, X, Y, sqrt=False):
+        '''Compute the distance between each X and Y.
+
+        Args:
+            X: a (m x d) tensor
+            Y: a (d x n) tensor
+
+        Returns:
+            diffs: an m x n distance matrix.
+        '''
+        XX = F.sum(F.square(X), 1, keepdims=True)
+        YY = F.sum(F.square(Y), 0, keepdims=True)
+        XY = F.dot(X, Y)
+
+        diffs = XX + YY - 2 * XY
+        diffs = F.relu(diffs)
+        if sqrt == True:
+            diffs = F.sqrt(diffs)
+        return diffs
+
+    def hybrid_forward(self, F, pred1, pred2):
+        pred1_norm = F.L2Normalization(pred1, mode="instance")
+        pred2_norm = F.L2Normalization(pred2, mode="instance")
+
+        # 计算欧式距离
+        dist = -0.5 * self.euclidean_distance(F, pred1_norm, pred2_norm.transpose(), sqrt=False) + 1
+        dist_pos = F.diag(dist)
+        dist_neg = dist - F.diag(dist_pos)
+
+        # Losses
+        # 取得批次中每张图像与其他图像特征的距离最大值
+        dist_neg_1 = F.expand_dims(F.max(dist_neg, axis=1), axis=1)
+        dist_neg_2 = F.expand_dims(F.max(dist_neg, axis=0), axis=1)
+        logits_neg = F.maximum(dist_neg_1, dist_neg_2)
+
+        loss = (self.m + logits_neg - dist_pos) * 0.5
+        loss = F.relu(loss)
+
+        return loss
