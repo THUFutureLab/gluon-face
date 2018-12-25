@@ -165,7 +165,7 @@ class ArcLoss(SoftmaxCrossEntropyLoss):
           batch_axis are averaged out.
     """
 
-    def __init__(self, classes, m=0.5, s=64,
+    def __init__(self, classes, m=0.5, s=64, easy_margin=True,
                  axis=-1, sparse_label=True, weight=None, batch_axis=0, **kwargs):
         super().__init__(axis=axis, sparse_label=sparse_label,
                          weight=weight, batch_axis=batch_axis, **kwargs)
@@ -178,16 +178,24 @@ class ArcLoss(SoftmaxCrossEntropyLoss):
         self.mm = math.sin(math.pi - m) * m
         self.threshold = math.cos(math.pi - m)
         self._classes = classes
+        self.easy_margin = easy_margin
 
     def hybrid_forward(self, F, pred, label, sample_weight=None, *args, **kwargs):
         cos_t = F.pick(pred, label, axis=1)  # cos(theta_yi)
+        if self.easy_margin:
+            cond = F.Activation(data=cos_t, act_type='relu')
+        else:
+            cond_v = cos_t - self.threshold
+            cond = F.Activation(data=cond_v, act_type='relu')
 
-        cond_v = cos_t - self.threshold
-        cond = F.Activation(data=cond_v, act_type='relu')
-        sin_t = 1.0 - F.sqrt(cos_t * cos_t)  # sin(theta)
-        new_zy = cos_t * self.cos_m - sin_t * self.sin_m  # cos(theta_yi + m)
+        # sin_t = F.sqrt(1.0 - cos_t * cos_t)  # sin(theta)
+        # new_zy = cos_t * self.cos_m - sin_t * self.sin_m  # cos(theta_yi + m)
 
-        zy_keep = cos_t - self.mm  # (cos(theta_yi) - sin(pi - m)*m)
+        new_zy = F.cos(F.arccos(cos_t) + self.m)  # cos(theta_yi + m)
+        if self.easy_margin:
+            zy_keep = cos_t
+        else:
+            zy_keep = cos_t - self.mm  # (cos(theta_yi) - sin(pi - m)*m)
         new_zy = F.where(cond, new_zy, zy_keep)
         diff = new_zy - cos_t  # cos(theta_yi + m) - cos(theta_yi)
         diff = F.expand_dims(diff, 1)  # shape=(b, 1)
