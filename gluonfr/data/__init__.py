@@ -59,7 +59,10 @@ datasets = {"lfw": FRValDataset,
             "cfp_ff": FRValDataset,
             "vgg2_fp": FRValDataset,
             "emore": FRTrainRecordDataset,
-            "vgg": FRTrainRecordDataset
+            "vgg": FRTrainRecordDataset,
+            "webface": FRTrainRecordDataset,
+            "asian_celeb": FRTrainRecordDataset,
+            "deep_glint": FRTrainRecordDataset
             }
 
 
