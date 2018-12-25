@@ -68,7 +68,7 @@ def validate(net, val_data, ctx, loss, plot=False):
 def train():
     epochs = 100
 
-    lr = 0.001
+    lr = 0.1
     lr_steps = [40, 70, np.inf]
     momentum = 0.9
     wd = 5e-4
@@ -76,17 +76,17 @@ def train():
     plot_period = 5
 
     ctx = [mx.gpu(i) for i in range(2)]
-    batch_size = 64
+    batch_size = 256
 
-    margin_s = 60
-    margin_m = 0.5
+    margin_s = 5
+    margin_m = 0.2
 
     train_set = MNIST(train=True, transform=transform_train)
     train_data = gluon.data.DataLoader(train_set, batch_size, True, num_workers=4, last_batch='discard')
     val_set = MNIST(train=False, transform=transform_val)
     val_data = gluon.data.DataLoader(val_set, batch_size, shuffle=False, num_workers=4)
 
-    net = LeNetPlus(embedding_size=2, feature_norm=True, weight_norm=True)
+    net = LeNetPlus(embedding_size=64, feature_norm=True, weight_norm=True)
     net.initialize(init=mx.init.MSRAPrelu(), ctx=ctx)
     # net.load_parameters("./pretrained_mnist.params", ctx=ctx)
     net.hybridize()
@@ -105,10 +105,10 @@ def train():
         if epoch == lr_steps[lr_counter]:
             trainer.set_learning_rate(trainer.learning_rate * 0.1)
             lr_counter += 1
-        if (epoch % plot_period) == 0:
-            plot = True
-        else:
-            plot = False
+        # if (epoch % plot_period) == 0:
+        #     plot = True
+        # else:
+        plot = False
         train_loss = 0
         metric.reset()
         tic = time.time()
