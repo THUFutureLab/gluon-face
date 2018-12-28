@@ -47,7 +47,7 @@ setup(
     name='gluonfr',
     version=VERSION,
     author='haoxintong',
-    url='https://github.com/haoxintong',
+    url='https://github.com/THUFutureLab/gluon-face',
     description='Gluon FR Toolkit',
     long_description=long_description,
     license='MIT',

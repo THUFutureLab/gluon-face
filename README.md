@@ -15,8 +15,8 @@ pip install mxnet-cuXXmkl --pre --upgrade
 ```
 Then install gluonfr:
 ```shell
-git clone https://github.com/THUFutureLab/gluon-fr
-cd gluon-fr/
+git clone https://github.com/THUFutureLab/gluon-face
+cd gluon-face/
 python3 setup.py install
 ```
 
@@ -75,7 +75,7 @@ To be continued.
 - More pretrained models
 - IJB and Megaface Results
 - Other losses
-- Dataloader for loss depand on how to provide batches like Triplet, ContrastiveLoss, RangeLoss...
+- Dataloader for loss depend on how to provide batches like Triplet, ContrastiveLoss, RangeLoss...
 - Try GluonCV resnetV1b/c/d/ to improve performance
 - Create hosted docs
 - Test module
