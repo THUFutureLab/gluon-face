@@ -89,12 +89,11 @@ tic = time.time()
 btic = time.time()
 
 while it < iters + 1:
-    if it == lr_steps[lr_counter]:
-        trainer.set_learning_rate(trainer.learning_rate * 0.1)
-        lr_counter += 1
 
     for batch in tqdm(train_data):
-
+        if it == lr_steps[lr_counter]:
+            trainer.set_learning_rate(trainer.learning_rate * 0.1)
+            lr_counter += 1
         datas = gluon.utils.split_and_load(batch[0], ctx_list=ctx, batch_axis=0, even_split=False)
         labels = gluon.utils.split_and_load(batch[1], ctx_list=ctx, batch_axis=0, even_split=False)
 

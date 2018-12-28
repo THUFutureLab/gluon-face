@@ -96,11 +96,11 @@ dali_iter = DALIClassificationIterator(train_pipes, size)
 
 
 while it < iters + 1:
-    if it == lr_steps[lr_counter]:
-        trainer.set_learning_rate(trainer.learning_rate * 0.1)
-        lr_counter += 1
 
     for batches in tqdm(dali_iter):
+        if it == lr_steps[lr_counter]:
+            trainer.set_learning_rate(trainer.learning_rate * 0.1)
+            lr_counter += 1
         datas, labels = split_and_load(batches, num_gpu)
 
         with ag.record():
