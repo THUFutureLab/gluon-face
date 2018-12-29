@@ -60,7 +60,7 @@ GluonFR提供了Mnist手写数字识别的训练和可视化代码，用于验�
 |Contrastive Loss|[ContrastiveLoss](http://yann.lecun.com/exdb/publis/pdf/hadsell-chopra-lecun-06.pdf)|-|-|
 |Triplet|[1503.03832](https://arxiv.org/abs/1503.03832)|-|99.63±0.09|
 |Center Loss|[CenterLoss](https://ydwen.github.io/papers/WenECCV16.pdf)|<img src="resources/mnist-euclidean/center-train-epoch100.png"/>|99.28 |
-|L2-Softmax|[L2-1703.09507](https://arxiv.org/abs/1703.09507)|-|99.33|
+|L2-Softmax|[1703.09507](https://arxiv.org/abs/1703.09507)|-|99.33|
 |A-Softmax|[1704.08063](https://arxiv.org/abs/1704.08063)|-|99.42|
 |CosLoss/AMSoftmax|[1801.05599](https://arxiv.org/abs/1801.05599)/[1801.05599](https://arxiv.org/abs/1801.05599)|<img src="resources/minst-angular/cosloss-train-epoch95.png"/>|99.17|
 |Arcloss|[1801.07698](https://arxiv.org/abs/1801.07698)|<img src="resources/minst-angular/arcloss-train-epoch100.png"/>|99.82|
@@ -88,6 +88,9 @@ GluonFR documentation is not available now.
 
 ## Authors
 { [haoxintong](https://github.com/haoxintong) [Yangxv](https://github.com/PistonY) [Haoyadong](https://github.com/jiqirenno1) [Sunhao](https://github.com/smartadpole) }
+
+## Discussion
+[中文社区Gluon-Forum](https://discuss.gluon.ai/t/topic/9959) Feel free to use English here :D.
 
 ## References
 
