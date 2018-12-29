@@ -26,7 +26,8 @@ from mxnet import nd, init
 from mxnet.gluon.loss import Loss, SoftmaxCrossEntropyLoss
 
 __all__ = ["SoftmaxCrossEntropyLoss", "ArcLoss", "TripletLoss", "RingLoss", "CosLoss",
-           "L2Softmax", "ASoftmax", "CenterLoss", "ContrastiveLoss", "LGMLoss", "MPSLoss"]
+           "L2Softmax", "ASoftmax", "CenterLoss", "ContrastiveLoss", "LGMLoss", "MPSLoss",
+           "GitLoss"]
 numeric_types = (float, int, np.generic)
 
 
@@ -431,16 +432,16 @@ class CenterLoss(SoftmaxCrossEntropyLoss):
                  weight_initializer=init.Xavier(magnitude=2.24), dtype='float32',
                  axis=-1, sparse_label=True, weight=None, batch_axis=0, **kwargs):
         super().__init__(axis=axis, sparse_label=sparse_label, weight=weight, batch_axis=batch_axis, **kwargs)
-        self._lmda = lamda
+        self._lamda = lamda
+        self._classes = classes
         self.centers = self.params.get('centers', shape=(classes, embedding_size), init=weight_initializer,
                                        dtype=dtype, allow_deferred_init=True)
 
     def hybrid_forward(self, F, x, label, embeddings, centers, sample_weight=None):
-        hist = F.array(np.bincount(label.asnumpy().astype(int)))
-
-        centers_count = F.take(hist, label)
+        # loss center
+        centers_count = F.take(F.sum(F.one_hot(label, depth=self._classes), axis=0), label)
         centers_selected = F.take(centers, label)
-        loss_c = self._lmda * 0.5 * F.sum(F.square(embeddings - centers_selected), 1) / centers_count
+        loss_c = self._lamda * 0.5 * F.sum(F.square(embeddings - centers_selected), 1) / centers_count
 
         # Softmax
         loss_sm = super().hybrid_forward(F, x, label, sample_weight)
@@ -642,3 +643,61 @@ class MPSLoss(Loss):
 
         loss = (self.m + logits_neg - dist_pos) * 0.5
         return F.relu(loss)
+
+
+class GitLoss(SoftmaxCrossEntropyLoss):
+    """Computes the Git Loss from
+    `"Git Loss for Deep Face Recognition"
+    <https://arxiv.org/abs/1807.08512>`_paper.
+
+    This implementation require the batch size not changing in training or validation.
+    Commonly, it is ok, as when we train models last batch discard is applied, and no need
+    for validation to compute the loss.
+
+    Parameters
+    ----------
+    classes: int.
+        Number of classes.
+    embedding_size: int.
+        Size of feature.
+    lamda_c: float.
+        The loss weight enforcing a trade-off between the softmax loss and center loss.
+    lamda_g: float.
+        The loss weight enforcing a trade-off between the softmax loss and git loss.
+    batch_size_per_gpu: int.
+        This size is sample numbers in each gpu or device, not total batch size
+    Outputs:
+        - **loss**: loss tensor with shape (batch_size,). Dimensions other than
+          batch_axis are averaged out.
+
+    """
+
+    def __init__(self, classes, embedding_size, lamda_c, lamda_g, batch_size_per_gpu,
+                 weight_initializer=init.Xavier(magnitude=2.24), dtype='float32',
+                 axis=-1, sparse_label=True, weight=None, batch_axis=0, **kwargs):
+        super().__init__(axis=axis, sparse_label=sparse_label, weight=weight, batch_axis=batch_axis, **kwargs)
+        self._lamda_c = lamda_c
+        self._lamda_g = lamda_g
+        self._classes = classes
+        self.centers = self.params.get('centers', shape=(classes, embedding_size), init=weight_initializer,
+                                       dtype=dtype, allow_deferred_init=True)
+        self.mask = self.params.get_constant('mask', np.expand_dims(1 - np.eye(int(batch_size_per_gpu)), axis=2))
+
+    def hybrid_forward(self, F, x, label, embeddings, centers, mask, sample_weight=None):
+        centers_selected = F.take(centers, label)
+
+        # Softmax
+        loss_sm = super().hybrid_forward(F, x, label, sample_weight)
+        onehot_label = F.one_hot(label, depth=self._classes)
+
+        # loss center
+        label_hist = F.sum(onehot_label, axis=0)
+        centers_count = F.take(label_hist, label)
+        loss_c = F.sum(F.square(embeddings - centers_selected), 1) / centers_count
+
+        # loss git
+        diffs = F.broadcast_sub(F.expand_dims(embeddings, axis=1), F.expand_dims(centers_selected, 0))
+        diffs = F.broadcast_mul(diffs, mask)
+        loss_g = F.mean(1 / (1 + F.sum(F.square(diffs), axis=2)), axis=1)
+
+        return loss_sm + self._lamda_c * 0.5 * loss_c + self._lamda_g * loss_g
