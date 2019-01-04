@@ -2,7 +2,8 @@
 
 GluonFR is a toolkit based on MXnet-Gluon, provides SOTA deep learning algorithm and models in face recognition.
 
-此项目灵感来自GluonCV，并按照其结构组织. 除了帮助研究者和开发者们迅速上手目前最前沿的人脸识别算法, 也希望能够让更多的人了解Gluon这一好用的工具, 使用MXnet-Gluon进行深度学习算法的研究.
+此项目灵感来自GluonCV, 并按照其结构组织. 除了帮助研究者和开发者们迅速上手目前最前沿的人脸识别算法, 
+也希望能够让更多的人了解Gluon这一好用的工具, 使用MXnet-Gluon进行深度学习算法的研究.
 
 ## Installation
 GluonFR supports Python 3.5 or later. 
@@ -23,9 +24,18 @@ python3 setup.py install
 ## GluonFR Introduction:
 GluonFR is based on MXnet-Gluon, if you are new to it, please check out [dmlc 60-minute crash course](http://gluon-crash-course.mxnet.io/).
 #### Data: 
-这一部分主要提供训练和验证数据的输入. GluonFR目前使用的训练集是由DeepInsight提供, 使用mtcnn进行关键点检测并对齐至(112, 112)大小, 详情参考[[insightface/Dataset-Zoo]](https://github.com/deepinsight/insightface/wiki/Dataset-Zoo). 另外, data/中还包括nvidia-dali库的使用样例, 在CPU预处理数据成为训练瓶颈时可以考虑试用, 目前dali库中坑还比较多.
+这一部分主要提供训练和验证数据的输入. GluonFR目前使用的训练集是由DeepInsight提供, 使用mtcnn进行关键点检测并对齐至(112, 112)大小,
+ 详情参考[[insightface/Dataset-Zoo]](https://github.com/deepinsight/insightface/wiki/Dataset-Zoo). 
+另外, data/中还包括nvidia-dali库的使用样例, 在CPU预处理数据成为训练瓶颈时可以考虑试用, 目前dali库中坑还比较多.
 
-使用时将数据按如下结构准备:
+This part provides input pipeline for training and validation, 
+all datasets is aligned by mtcnn and cropped to (112, 112) by DeepInsight, 
+they converted images to `train.rec`, `train.idx` and `val_data.bin` files,  please check out 
+[[insightface/Dataset-Zoo]](https://github.com/deepinsight/insightface/wiki/Dataset-Zoo) for more information. 
+In `data/dali_utils.py`, there is a simple example of Nvidia-DALI. It is worth trying when data augmentation with cpu 
+can not satisfy the speed of gpu training,  
+
+The files should be prepared like:
 ```
 face/
     emore/
@@ -44,16 +54,22 @@ face/
 We use `~/.mxnet/datasets` as default dataset root to match mxnet setting.
 
 #### Model:
-mobile_facenet，res_attention_net，se_resnet等。
+mobile_facenet, res_attention_net, se_resnet...
 
 #### Loss:
-GluonFR提供了近年来主流人脸识别损失函数的实现，包括SoftmaxCrossEntropyLoss，ArcLoss，TripletLoss，RingLoss，CosLoss，L2Softmax，ASoftmax，CenterLoss，ContrastiveLoss等, 并在今后会持续更新.
+GluonFR provides implement of losses in recent, including SoftmaxCrossEntropyLoss, ArcLoss, TripletLoss, 
+RingLoss, CosLoss, L2Softmax, ASoftmax, CenterLoss, ContrastiveLoss, ... , and we will keep updating in future.  
+If there is any method we overlooked, please open an [issue](https://github.com/THUFutureLab/gluon-face/issues).
 
 #### Example:
-GluonFR提供了Mnist手写数字识别的训练和可视化代码，用于验证损失函数的有效性;在人脸识别数据集上基于model-zoo模型完成训练。
+GluonFR提供了Mnist手写数字识别的训练和可视化代码, 用于验证损失函数的有效性;在人脸识别数据集上基于model-zoo模型完成训练.  
+`examples/` shows how to use gluonfr to training a face recognition model, and how to get Mnist 2-D 
+feature embedding visualization.  
   
-## GluonFR中的Loss:  
-下表中最后一列是论文中在LFW上的最优结果，数据、网络结构都可能不同，仅供参考。
+## Losses in GluonFR:  
+下表中最后一列是论文中在LFW上的最优结果, 数据、网络结构都可能不同, 仅供参考.  
+The last column of this chart is the best LFW accuracy reported in paper, they are trained with different data and networks, 
+later we will give our results of these method with same train data and network. 
 
 |Method| Paper |Visualization of MNIST|LFW|
 |:---|:---:| :---:|:---:|
