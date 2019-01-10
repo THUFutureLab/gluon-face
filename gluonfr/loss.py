@@ -27,7 +27,7 @@ from mxnet.gluon.loss import Loss, SoftmaxCrossEntropyLoss
 
 __all__ = ["SoftmaxCrossEntropyLoss", "ArcLoss", "TripletLoss", "RingLoss", "CosLoss",
            "L2Softmax", "ASoftmax", "CenterLoss", "ContrastiveLoss", "LGMLoss", "MPSLoss",
-           "GitLoss"]
+           "GitLoss", "COCOLoss"]
 numeric_types = (float, int, np.generic)
 
 
@@ -701,3 +701,43 @@ class GitLoss(SoftmaxCrossEntropyLoss):
         loss_g = F.mean(1 / (1 + F.sum(F.square(diffs), axis=2)), axis=1)
 
         return loss_sm + self._lamda_c * 0.5 * loss_c + self._lamda_g * loss_g
+
+
+class COCOLoss(SoftmaxCrossEntropyLoss):
+    """Computes the COCO Loss from
+    `"Rethinking Feature Discrimination and Polymerization for Large-scale Recognition"
+    <https://arxiv.org/abs/1710.00870>`_paper.
+
+    This loss can be replaced by NormDense with Softmax, it is not recommended to use this.
+
+    Parameters
+    ----------
+    classes: int.
+        Number of classes.
+    embedding_size: int.
+        Size of feature.
+    alpha: float.
+        The scaling parameter, a hypersphere with small alpha
+        will limit surface area for embedding features.
+
+    Outputs:
+        - **loss**: loss tensor with shape (batch_size,). Dimensions other than
+          batch_axis are averaged out.
+
+    """
+
+    def __init__(self, classes, embedding_size, alpha,
+                 weight_initializer=init.Xavier(magnitude=2.24), dtype='float32',
+                 axis=-1, sparse_label=True, weight=None, batch_axis=0, **kwargs):
+        super().__init__(axis=axis, sparse_label=sparse_label, weight=weight, batch_axis=batch_axis, **kwargs)
+        self._alpha = alpha
+        self._classes = classes
+        self.centers = self.params.get('centers', shape=(classes, embedding_size), init=weight_initializer,
+                                       dtype=dtype, allow_deferred_init=True)
+
+    def hybrid_forward(self, F, embeddings, label, centers, sample_weight=None):
+
+        norm_embs = self._alpha * F.L2Normalization(embeddings, mode='instance', name='fc1n')
+        norm_centers = F.L2Normalization(centers, mode='instance', name='center_norm')
+        outputs = F.dot(norm_embs, norm_centers, transpose_b=True)
+        return super().hybrid_forward(F, outputs, label, sample_weight)
