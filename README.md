@@ -15,10 +15,19 @@ pip install mxnet-mkl --pre --upgrade
 pip install mxnet-cuXXmkl --pre --upgrade
 ```
 Then install gluonfr:
+
+- From Socure
+
 ```shell
 git clone https://github.com/THUFutureLab/gluon-face
 cd gluon-face/
 python3 setup.py install
+```
+
+- Pip
+
+```shell
+pip install gluonfr
 ```
 
 ## GluonFR Introduction:
@@ -63,7 +72,7 @@ If there is any method we overlooked, please open an [issue](https://github.com/
 
 #### Example:
 GluonFR提供了Mnist手写数字识别的训练和可视化代码, 用于验证损失函数的有效性;在人脸识别数据集上基于model-zoo模型完成训练.  
-`examples/` shows how to use gluonfr to training a face recognition model, and how to get Mnist 2-D 
+`examples/` shows how to use gluonfr to train a face recognition model, and how to get Mnist 2-D 
 feature embedding visualization.  
   
 ## Losses in GluonFR:  
@@ -95,7 +104,7 @@ To be continued.
 - Try GluonCV resnetV1b/c/d/ to improve performance
 - Create hosted docs
 - Test module
-- Pypi package
+- [x] Pypi package
 
 
 ## Docs
