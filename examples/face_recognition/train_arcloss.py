@@ -49,9 +49,9 @@ lr_steps = [30e3, 60e3, 90e3, np.inf]
 
 scale = 50
 margin = 0.5
-embedding_size = 256
+embedding_size = 128
 
-lr = 0.001
+lr = 0.1
 momentum = 0.9
 wd = 4e-5
 
@@ -62,10 +62,10 @@ targets = ['lfw']
 val_sets = [get_recognition_dataset(name, transform=transform_test) for name in targets]
 val_datas = [DataLoader(dataset, batch_size, num_workers=num_worker) for dataset in val_sets]
 
-net = get_mobile_facenet(train_set.num_classes, embedding_size=embedding_size, weight_norm=True, feature_norm=True)
-# net.initialize(init=mx.init.MSRAPrelu(), ctx=ctx)
-net.load_parameters(os.path.join(os.path.dirname(__file__),
-                                 "../../models/mobilefacenet-ring-it-185000.params"), ctx=ctx)
+net = get_mobile_facenet(train_set.num_classes, weight_norm=True, feature_norm=True)
+net.initialize(init=mx.init.MSRAPrelu(), ctx=ctx)
+# net.load_parameters(os.path.join(os.path.dirname(__file__),
+#                                  "../../models/mobilefacenet-ring-it-185000.params"), ctx=ctx)
 net.hybridize(static_alloc=True)
 
 loss = ArcLoss(train_set.num_classes, m=margin, s=scale, easy_margin=False)
@@ -76,8 +76,8 @@ logger.addHandler(logging.StreamHandler())
 logger.addHandler(logging.FileHandler("./mobile-face-arcloss.log"))
 
 train_params = net.collect_params()
-train_params.update(loss.params)
-trainer = gluon.Trainer(train_params, 'sgd', {'learning_rate': lr, 'momentum': momentum, 'wd': wd})
+# train_params.update(loss.params)
+trainer = gluon.Trainer(train_params, 'nag', {'learning_rate': lr, 'momentum': momentum, 'wd': wd})
 lr_counter = 0
 
 logger.info([margin, scale, lr_steps, lr, momentum, wd, batch_size])

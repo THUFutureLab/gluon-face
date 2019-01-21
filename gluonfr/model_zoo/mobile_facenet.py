@@ -70,8 +70,8 @@ class Bottleneck(nn.HybridBlock):
 
 class MobileFaceNet(FrBase):
     def __init__(self, classes, use_se=False, weight_norm=False,
-                 feature_norm=False, embedding_size=128, need_cls_layer=True, **kwargs):
-        super(MobileFaceNet, self).__init__(classes, embedding_size, weight_norm,
+                 feature_norm=False, need_cls_layer=True, **kwargs):
+        super(MobileFaceNet, self).__init__(classes, 128, weight_norm,
                                             feature_norm, need_cls_layer, **kwargs)
         with self.name_scope():
             self.features = nn.HybridSequential(prefix='feature_')
@@ -87,13 +87,11 @@ class MobileFaceNet(FrBase):
                     _make_bottleneck(5, layers=2, channels=128, stride=1, t=2, in_channels=128, use_se=use_se))
 
                 self.features.add(_make_conv(6, 512),
-
                                   _make_conv(6, 512, kernel=7, num_group=512, active=False),
-                                  nn.Flatten(),
-                                  nn.Dense(embedding_size, use_bias=False),
+                                  nn.Conv2D(128, 1, use_bias=False),
                                   nn.BatchNorm(scale=False, center=False),
-                                  nn.PReLU())
+                                  nn.Flatten())
 
 
-def get_mobile_facenet(classes, embedding_size=512, **kwargs):
-    return MobileFaceNet(classes, embedding_size=embedding_size, **kwargs)
+def get_mobile_facenet(classes, **kwargs):
+    return MobileFaceNet(classes, **kwargs)
