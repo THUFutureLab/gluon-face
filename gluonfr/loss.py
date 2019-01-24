@@ -129,15 +129,16 @@ class CosLoss(SoftmaxCrossEntropyLoss):
           batch_axis are averaged out.
     """
 
-    def __init__(self, classes, m, s, axis=-1, sparse_label=True, weight=None, batch_axis=0, **kwargs):
-        super().__init__(axis=axis, sparse_label=sparse_label, weight=weight, batch_axis=batch_axis, **kwargs)
+    def __init__(self, classes, m, s, dtype="float32", **kwargs):
+        super().__init__(**kwargs)
         self._classes = classes
         self._scale = s
         self._margin = m
+        self._dtype = dtype
 
     def hybrid_forward(self, F, x, label, sample_weight=None):
         if self._sparse_label:
-            one_hot_label = F.one_hot(label, depth=self._classes, on_value=1.0, off_value=0.0)
+            one_hot_label = F.one_hot(label, depth=self._classes, on_value=1.0, off_value=0.0, dtype=self._dtype)
         else:
             one_hot_label = label
 
@@ -166,10 +167,8 @@ class ArcLoss(SoftmaxCrossEntropyLoss):
           batch_axis are averaged out.
     """
 
-    def __init__(self, classes, m=0.5, s=64, easy_margin=True,
-                 axis=-1, sparse_label=True, weight=None, batch_axis=0, **kwargs):
-        super().__init__(axis=axis, sparse_label=sparse_label,
-                         weight=weight, batch_axis=batch_axis, **kwargs)
+    def __init__(self, classes, m=0.5, s=64, easy_margin=True, dtype="float32", **kwargs):
+        super().__init__(**kwargs)
         assert s > 0.
         assert 0 <= m < (math.pi / 2)
         self.s = s
@@ -180,6 +179,7 @@ class ArcLoss(SoftmaxCrossEntropyLoss):
         self.threshold = math.cos(math.pi - m)
         self._classes = classes
         self.easy_margin = easy_margin
+        self._dtype = dtype
 
     def hybrid_forward(self, F, pred, label, sample_weight=None, *args, **kwargs):
         cos_t = F.pick(pred, label, axis=1)  # cos(theta_yi)
@@ -200,7 +200,7 @@ class ArcLoss(SoftmaxCrossEntropyLoss):
         new_zy = F.where(cond, new_zy, zy_keep)
         diff = new_zy - cos_t  # cos(theta_yi + m) - cos(theta_yi)
         diff = F.expand_dims(diff, 1)  # shape=(b, 1)
-        gt_one_hot = F.one_hot(label, depth=self._classes, on_value=1.0, off_value=0.0)  # shape=(b,classes)
+        gt_one_hot = F.one_hot(label, depth=self._classes, on_value=1.0, off_value=0.0, dtype=self._dtype)
         body = F.broadcast_mul(gt_one_hot, diff)
         pred = pred + body
         pred = pred * self.s
@@ -312,9 +312,8 @@ class RingLoss(SoftmaxCrossEntropyLoss):
 
     """
 
-    def __init__(self, lamda, weight_initializer=None, dtype='float32',
-                 axis=-1, sparse_label=True, weight=None, batch_axis=0, **kwargs):
-        super().__init__(axis=axis, sparse_label=sparse_label, weight=weight, batch_axis=batch_axis, **kwargs)
+    def __init__(self, lamda, weight_initializer=None, dtype='float32', **kwargs):
+        super().__init__(**kwargs)
 
         self._lamda = lamda
         self.R = self.params.get('R', shape=(1,), init=weight_initializer,
@@ -352,13 +351,13 @@ class ASoftmax(SoftmaxCrossEntropyLoss):
           batch_axis are averaged out.
     """
 
-    def __init__(self, classes, m, s, axis=-1, phiflag=True,
-                 sparse_label=True, weight=None, batch_axis=0, **kwargs):
-        super().__init__(axis=axis, sparse_label=sparse_label, weight=weight, batch_axis=batch_axis, **kwargs)
+    def __init__(self, classes, m, s, phiflag=True, dtype="float32", **kwargs):
+        super().__init__(**kwargs)
         self._classes = classes
         self._scale = s
         self._margin = m
         self._phiflag = phiflag
+        self._dtype = dtype
         self.it = 0
         self.LambdaMin = 5.0
         self.LambdaMax = 1500.0
@@ -393,7 +392,7 @@ class ASoftmax(SoftmaxCrossEntropyLoss):
             phi_theta = phi_theta.clip(-1 * self._margin, 1)
 
         if self._sparse_label:
-            one_hot_label = F.one_hot(label, depth=self._classes, on_value=1.0, off_value=0.0)
+            one_hot_label = F.one_hot(label, depth=self._classes, on_value=1.0, off_value=0.0, dtype=self._dtype)
         else:
             one_hot_label = label
 
@@ -428,18 +427,18 @@ class CenterLoss(SoftmaxCrossEntropyLoss):
 
     """
 
-    def __init__(self, classes, embedding_size, lamda,
-                 weight_initializer=init.Xavier(magnitude=2.24), dtype='float32',
-                 axis=-1, sparse_label=True, weight=None, batch_axis=0, **kwargs):
-        super().__init__(axis=axis, sparse_label=sparse_label, weight=weight, batch_axis=batch_axis, **kwargs)
+    def __init__(self, classes, embedding_size, lamda, weight_initializer=init.Xavier(magnitude=2.24),
+                 dtype='float32', **kwargs):
+        super().__init__(**kwargs)
         self._lamda = lamda
         self._classes = classes
+        self._dtype = dtype
         self.centers = self.params.get('centers', shape=(classes, embedding_size), init=weight_initializer,
                                        dtype=dtype, allow_deferred_init=True)
 
     def hybrid_forward(self, F, x, label, embeddings, centers, sample_weight=None):
         # loss center
-        centers_count = F.take(F.sum(F.one_hot(label, depth=self._classes), axis=0), label)
+        centers_count = F.take(F.sum(F.one_hot(label, depth=self._classes, dtype=self._dtype), axis=0), label)
         centers_selected = F.take(centers, label)
         loss_c = self._lamda * 0.5 * F.sum(F.square(embeddings - centers_selected), 1) / centers_count
 
@@ -470,12 +469,13 @@ class LGMLoss(Loss):
         Var updating need a relatively low learning rate compared to the overall learning rate.
     """
 
-    def __init__(self, num_classes, embedding_size, alpha, lamda, lr_mult, **kwargs):
+    def __init__(self, num_classes, embedding_size, alpha, lamda, lr_mult, dtype="float32", **kwargs):
         super().__init__(weight=None, batch_axis=0, **kwargs)
         self._num_class = num_classes
         self._feature_dim = embedding_size
         self._alpha = alpha
         self._lamda = lamda
+        self._dtype = dtype
         self.mean = self.params.get('mean', shape=(num_classes, embedding_size), init=init.Xavier())
         self.var = self.params.get('var', shape=(num_classes, embedding_size), init=init.Constant(1), lr_mult=lr_mult)
 
@@ -487,7 +487,7 @@ class LGMLoss(Loss):
         d_z = F.elemwise_mul(F.broadcast_div(x, (reshape_var + 1e-8)), x)
         d_z = F.transpose(F.sum(d_z, axis=2) / 2)
 
-        mask = F.one_hot(label, self._num_class) * self._alpha + 1
+        mask = F.one_hot(label, self._num_class, dtype=self._dtype) * self._alpha + 1
         margin_d_z = d_z * mask
         probability = F.broadcast_div(F.exp(-margin_d_z), (F.sqrt(F.prod(var, 1)) + 1e-8))
         return probability, d_z
@@ -673,12 +673,12 @@ class GitLoss(SoftmaxCrossEntropyLoss):
     """
 
     def __init__(self, classes, embedding_size, lamda_c, lamda_g, batch_size_per_gpu,
-                 weight_initializer=init.Xavier(magnitude=2.24), dtype='float32',
-                 axis=-1, sparse_label=True, weight=None, batch_axis=0, **kwargs):
-        super().__init__(axis=axis, sparse_label=sparse_label, weight=weight, batch_axis=batch_axis, **kwargs)
+                 weight_initializer=init.Xavier(magnitude=2.24), dtype='float32', **kwargs):
+        super().__init__(**kwargs)
         self._lamda_c = lamda_c
         self._lamda_g = lamda_g
         self._classes = classes
+        self._dtype = dtype
         self.centers = self.params.get('centers', shape=(classes, embedding_size), init=weight_initializer,
                                        dtype=dtype, allow_deferred_init=True)
         self.mask = self.params.get_constant('mask', np.expand_dims(1 - np.eye(int(batch_size_per_gpu)), axis=2))
@@ -688,7 +688,7 @@ class GitLoss(SoftmaxCrossEntropyLoss):
 
         # Softmax
         loss_sm = super().hybrid_forward(F, x, label, sample_weight)
-        onehot_label = F.one_hot(label, depth=self._classes)
+        onehot_label = F.one_hot(label, depth=self._classes, dtype=self._dtype )
 
         # loss center
         label_hist = F.sum(onehot_label, axis=0)
@@ -727,16 +727,14 @@ class COCOLoss(SoftmaxCrossEntropyLoss):
     """
 
     def __init__(self, classes, embedding_size, alpha,
-                 weight_initializer=init.Xavier(magnitude=2.24), dtype='float32',
-                 axis=-1, sparse_label=True, weight=None, batch_axis=0, **kwargs):
-        super().__init__(axis=axis, sparse_label=sparse_label, weight=weight, batch_axis=batch_axis, **kwargs)
+                 weight_initializer=init.Xavier(magnitude=2.24), dtype='float32', **kwargs):
+        super().__init__(**kwargs)
         self._alpha = alpha
         self._classes = classes
         self.centers = self.params.get('centers', shape=(classes, embedding_size), init=weight_initializer,
                                        dtype=dtype, allow_deferred_init=True)
 
     def hybrid_forward(self, F, embeddings, label, centers, sample_weight=None):
-
         norm_embs = self._alpha * F.L2Normalization(embeddings, mode='instance', name='fc1n')
         norm_centers = F.L2Normalization(centers, mode='instance', name='center_norm')
         outputs = F.dot(norm_embs, norm_centers, transpose_b=True)
