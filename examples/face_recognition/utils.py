@@ -37,6 +37,34 @@ def transform_train(data, label):
     return im, label
 
 
+class Transform:
+    def __init__(self, use_float16=False):
+        self._transform_test = transforms.Compose([
+            transforms.ToTensor()
+        ])
+
+        self._transform_train = transforms.Compose([
+            transforms.RandomBrightness(0.3),
+            transforms.RandomContrast(0.3),
+            transforms.RandomSaturation(0.3),
+            transforms.RandomFlipLeftRight(),
+            transforms.ToTensor()
+        ])
+        self.use_float16 = use_float16
+
+    def transform_train(self, data, label):
+        im = self._transform_train(data)
+        if self.use_float16:
+            im = im.astype('float16')
+        return im, label
+
+    def transform_test(self, data):
+        im = self._transform_test(data)
+        if self.use_float16:
+            im = im.astype('float16')
+        return im
+
+
 def validate(net, ctx, val_datas, targets, nfolds=10, norm=True):
     metric = FaceVerification(nfolds)
     results = []
