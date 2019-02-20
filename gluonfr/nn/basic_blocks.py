@@ -105,6 +105,7 @@ class FrBase(nn.HybridBlock):
                  need_cls_layer=True, **kwargs):
         super(FrBase, self).__init__(**kwargs)
         self.need_cls_layer = need_cls_layer
+        self._fn = feature_norm
         self.features = None
 
         if need_cls_layer:
@@ -120,4 +121,7 @@ class FrBase(nn.HybridBlock):
             out = self.output(embedding)
             return embedding, out
         else:
+            if self._fn:
+                embedding = F.L2Normalization(embedding, mode='instance')
+                return embedding
             return embedding

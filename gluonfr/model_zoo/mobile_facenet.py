@@ -25,6 +25,7 @@ from ..nn.basic_blocks import FrBase, SELayer
 
 __all__ = ["MobileFaceNet",
            "get_mobile_facenet",
+           "get_mobile_facenet_re"
            ]
 
 
@@ -93,5 +94,35 @@ class MobileFaceNet(FrBase):
                                   nn.Flatten())
 
 
+class MobileFaceNet_re(FrBase):
+    def __init__(self, classes, use_se=False, weight_norm=False,
+                 feature_norm=False, need_cls_layer=True, **kwargs):
+        super(MobileFaceNet_re, self).__init__(classes, 160, weight_norm,
+                                               feature_norm, need_cls_layer, **kwargs)
+        with self.name_scope():
+            self.features = nn.HybridSequential(prefix='feature_')
+            with self.features.name_scope():
+                self.features.add(_make_conv(0, 32, kernel=3, stride=2, pad=1),
+                                  # _make_conv(0, 64, kernel=3, stride=1, pad=1, num_group=64)
+                                  )
+
+                self.features.add(
+                    _make_bottleneck(1, layers=1, channels=24, stride=2, t=3, in_channels=32, use_se=use_se),
+                    _make_bottleneck(2, layers=2, channels=32, stride=2, t=3, in_channels=24, use_se=use_se),
+                    _make_bottleneck(3, layers=3, channels=64, stride=1, t=3, in_channels=32, use_se=use_se),
+                    _make_bottleneck(4, layers=2, channels=96, stride=2, t=3, in_channels=64, use_se=use_se),
+                    _make_bottleneck(5, layers=2, channels=160, stride=1, t=3, in_channels=96, use_se=use_se))
+
+                self.features.add(_make_conv(6, 320),
+                                  _make_conv(6, 320, kernel=7, num_group=320, active=False),
+                                  nn.Conv2D(160, 1, use_bias=False),
+                                  nn.BatchNorm(scale=False, center=False),
+                                  nn.Flatten())
+
+
 def get_mobile_facenet(classes, **kwargs):
     return MobileFaceNet(classes, **kwargs)
+
+
+def get_mobile_facenet_re(classes, **kwargs):
+    return get_mobile_facenet_re(classes, **kwargs)
