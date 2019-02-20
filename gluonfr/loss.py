@@ -25,9 +25,9 @@ import numpy as np
 from mxnet import nd, init
 from mxnet.gluon.loss import Loss, SoftmaxCrossEntropyLoss
 
-__all__ = ["SoftmaxCrossEntropyLoss", "ArcLoss", "TripletLoss", "RingLoss", "CosLoss",
-           "L2Softmax", "ASoftmax", "CenterLoss", "ContrastiveLoss", "LGMLoss", "MPSLoss",
-           "GitLoss", "COCOLoss"]
+__all__ = ["get_loss", "SoftmaxCrossEntropyLoss", "ArcLoss", "TripletLoss", "RingLoss",
+           "CosLoss", "L2Softmax", "ASoftmax", "CenterLoss", "ContrastiveLoss", "LGMLoss",
+           "MPSLoss", "GitLoss", "COCOLoss"]
 numeric_types = (float, int, np.generic)
 
 
@@ -688,7 +688,7 @@ class GitLoss(SoftmaxCrossEntropyLoss):
 
         # Softmax
         loss_sm = super().hybrid_forward(F, x, label, sample_weight)
-        onehot_label = F.one_hot(label, depth=self._classes, dtype=self._dtype )
+        onehot_label = F.one_hot(label, depth=self._classes, dtype=self._dtype)
 
         # loss center
         label_hist = F.sum(onehot_label, axis=0)
@@ -739,3 +739,52 @@ class COCOLoss(SoftmaxCrossEntropyLoss):
         norm_centers = F.L2Normalization(centers, mode='instance', name='center_norm')
         outputs = F.dot(norm_embs, norm_centers, transpose_b=True)
         return super().hybrid_forward(F, outputs, label, sample_weight)
+
+
+_losses = {
+    'softmax': SoftmaxCrossEntropyLoss,
+    'arcface': ArcLoss,
+    'triplet': TripletLoss,
+    'ringloss': RingLoss,
+    'cosLoss': CosLoss,
+    'l2softmax': L2Softmax,
+    'asoftmax': ASoftmax,
+    'centerloss': CenterLoss,
+    'contrastiveloss': ContrastiveLoss,
+    'lgmloss': LGMLoss,
+    'mpsoss': MPSLoss,
+    'gitloss': GitLoss,
+    'cocoloss': COCOLoss,
+}
+
+
+def get_loss(name, **kwargs):
+    """
+    Parameters
+    ----------
+    name : str
+        Name
+    kwargs : str
+        Params
+    Returns
+    -------
+    HybridBlock
+        The loss.
+    """
+    name = name.lower()
+    if name not in _losses:
+        err_str = '"%s" is not among the following losses list:\n\t' % (name)
+        err_str += '%s' % ('\n\t'.join(sorted(_losses.keys())))
+        raise ValueError(err_str)
+    loss = _losses[name](**kwargs)
+    return loss
+
+
+def get_loss_list():
+    """Get the entire list of loss names in losses.
+    Returns
+    -------
+    list of str
+        Entire list of loss names in losses.
+    """
+    return _losses.keys()

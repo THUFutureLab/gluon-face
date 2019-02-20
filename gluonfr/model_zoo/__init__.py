@@ -23,3 +23,4 @@
 from .mobile_facenet import *
 from .attention_net import *
 from .se_resnet import *
+from .model_zoo import *
