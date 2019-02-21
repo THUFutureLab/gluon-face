@@ -71,7 +71,7 @@ if not os.path.exists(opt.save_dir):
 
 logging_file = opt.logging_file
 if opt.logging_file == '':
-    logging_file = opt.model + '.log'
+    logging_file = '%s_%s_%s.log'.format(opt.dataset, opt.model.replace('_', ''), opt.loss)
 
 filehandler = logging.FileHandler(logging_file)
 streamhandler = logging.StreamHandler()
@@ -126,6 +126,7 @@ targets = opt.target
 val_sets = [get_recognition_dataset(name, transform=transform_test) for name in targets.split(",")]
 val_datas = [DataLoader(dataset, batch_size, last_batch='keep') for dataset in val_sets]
 
+dtype = opt.dtype
 train_net = get_model(opt.model, classes=train_set.num_classes, weight_norm=True, feature_norm=True)
 train_net.initialize(init=mx.init.MSRAPrelu(), ctx=ctx)
 
@@ -137,10 +138,10 @@ lr_scheduler = IterLRScheduler(mode=opt.lr_mode, baselr=opt.lr, step=lr_period,
 optimizer = 'nag'
 optimizer_params = {'wd': opt.wd, 'momentum': 0.9, 'lr_scheduler': lr_scheduler}
 if opt.dtype != 'float32':
-    train_net.cast(opt.dtype)
+    train_net.cast(dtype)
     optimizer_params['multi_precision'] = True
 
-# TODO(PistonYang): How to design this?
+# TODO(PistonYang): We will support more losses as we train them.
 Loss = None
 AFL = ArcLoss(train_set.num_classes, margin_m, margin_s, easy_margin=False)
 SML = L2Softmax(train_set.num_classes, alpha=margin_s, from_normx=True)
@@ -163,8 +164,8 @@ def train():
         labels = gluon.utils.split_and_load(batch[1], ctx_list=ctx, batch_axis=0, even_split=False)
 
         with autograd.record():
-            outputs = [train_net(X)[1] for X in trans]
-            losses = [Loss(yhat, y) for yhat, y in zip(outputs, labels)]
+            outputs = [train_net(X.astype(dtype, copy=False))[1] for X in trans]
+            losses = [Loss(yhat, y.astype(dtype, copy=False)) for yhat, y in zip(outputs, labels)]
         for loss in losses:
             loss.backward()
         trainer.step(batch_size)
@@ -198,8 +199,8 @@ def validate(nfolds=10, norm=True):
             data1s = gluon.utils.split_and_load(batch[0][1], ctx, even_split=False)
             issame_list = gluon.utils.split_and_load(batch[1], ctx, even_split=False)
 
-            embedding0s = [train_net(X)[0] for X in data0s]
-            embedding1s = [train_net(X)[0] for X in data1s]
+            embedding0s = [train_net(X.astype(dtype, copy=False))[0] for X in data0s]
+            embedding1s = [train_net(X.astype(dtype, copy=False))[0] for X in data1s]
             if norm:
                 embedding0s = [sklearn.preprocessing.normalize(e.asnumpy()) for e in embedding0s]
                 embedding1s = [sklearn.preprocessing.normalize(e.asnumpy()) for e in embedding1s]
