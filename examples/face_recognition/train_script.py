@@ -37,8 +37,6 @@ parser.add_argument('--lr-decay', type=float, default=0.1,
                     help='decay rate of learning rate. default is 0.1.')
 parser.add_argument('--lr-decay-iter', type=str, default="60000, 120000",
                     help='Iters at which learning rate decays. default is 60e3,120e3.')
-parser.add_argument('--warmup-lr', type=float, default=0.0,
-                    help='starting warmup learning rate. default is 0.0.')
 parser.add_argument('--lr-warmup-iters', type=int, default=0,
                     help='Whether use learning rate warmup, default set 0 to disable.')
 parser.add_argument('--wd', type=float, default=5e-4,
@@ -135,9 +133,7 @@ train_net.initialize(init=mx.init.MSRAPrelu(), ctx=ctx)
 lr_period = [int(iter) for iter in opt.lr_decay_iter.split(",")]
 lr_scheduler = IterLRScheduler(mode=opt.lr_mode, baselr=opt.lr, step=lr_period,
                                step_factor=opt.lr_decay, power=2,
-                               niters=num_iterations, warmup_lr=opt.warmup_lr,
-                               warmup_iters=opt.lr_warmup_iters)
-
+                               niters=num_iterations, warmup_iters=opt.lr_warmup_iters)
 optimizer = 'nag'
 optimizer_params = {'wd': opt.wd, 'momentum': 0.9, 'lr_scheduler': lr_scheduler}
 if opt.dtype != 'float32':
