@@ -38,8 +38,9 @@ requirements = [
     # 'mxnet',
     'matplotlib',
     'seaborn',
-    'Pillow',
+    # 'Pillow',
     'scipy',
+    'scikit-learn'
 ]
 
 setup(
