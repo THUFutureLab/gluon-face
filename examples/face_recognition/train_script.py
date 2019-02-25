@@ -62,16 +62,17 @@ parser.add_argument('--cat-interval', type=int, default=int(1e3),
 parser.add_argument('--save-dir', type=str, default='params',
                     help='directory of saved models')
 parser.add_argument('--hybrid', action='store_true',
-                    help='Whether use hybrid.')
-
+                    help='Whether to use hybrid.')
 opt = parser.parse_args()
+
 assert opt.batch_size % len(opt.ctx.split(",")) == 0, "Per batch on each GPU must be same."
+assert opt.dtype in ('float32', 'float16'), "Data type only support FP16/FP32."
 if not os.path.exists(opt.save_dir):
     os.mkdir(opt.save_dir)
 
 logging_file = opt.logging_file
 if opt.logging_file == '':
-    logging_file = '%s_%s_%s.log'.format(opt.dataset, opt.model.replace('_', ''), opt.loss)
+    logging_file = '%s_%s_%s.log' % (opt.dataset, opt.model.replace('_', ''), opt.loss)
 
 filehandler = logging.FileHandler(logging_file)
 streamhandler = logging.StreamHandler()
@@ -142,7 +143,7 @@ if opt.dtype != 'float32':
 
 # TODO(PistonYang): We will support more losses as we train them.
 Loss = None
-AFL = ArcLoss(train_set.num_classes, margin_m, margin_s, easy_margin=False)
+AFL = ArcLoss(train_set.num_classes, margin_m, margin_s, easy_margin=False, dtype=dtype)
 SML = L2Softmax(train_set.num_classes, alpha=margin_s, from_normx=True)
 
 
@@ -215,6 +216,9 @@ def validate(nfolds=10, norm=True):
 if __name__ == '__main__':
     if opt.hybrid:
         train_net.hybridize()
+    if opt.model == 'mobilefacenet':
+        for k, v in train_net.collect_params('.*output_').items():
+            v.wd_mult = 10.0
     if opt.no_wd:
         for k, v in train_net.collect_params('.*beta|.*gamma|.*bias').items():
             v.wd_mult = 0.0
