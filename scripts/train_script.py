@@ -141,7 +141,7 @@ if opt.dtype != 'float32':
     train_net.cast(dtype)
     optimizer_params['multi_precision'] = True
 
-# TODO(PistonYang): We will support more losses as we train them.
+# TODO(PistonYang): We will support more losses as we train them. Now only ArcFace support FP16.
 Loss = None
 AFL = ArcLoss(train_set.num_classes, margin_m, margin_s, easy_margin=False, dtype=dtype)
 SML = L2Softmax(train_set.num_classes, alpha=margin_s, from_normx=True)
