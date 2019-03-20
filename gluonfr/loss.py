@@ -27,7 +27,7 @@ from mxnet.gluon.loss import Loss, SoftmaxCrossEntropyLoss
 
 __all__ = ["get_loss", "SoftmaxCrossEntropyLoss", "ArcLoss", "TripletLoss", "RingLoss",
            "CosLoss", "L2Softmax", "ASoftmax", "CenterLoss", "ContrastiveLoss", "LGMLoss",
-           "MPSLoss", "GitLoss", "COCOLoss"]
+           "MPSLoss", "GitLoss", "COCOLoss", "SVXSoftmax"]
 numeric_types = (float, int, np.generic)
 
 
@@ -741,6 +741,59 @@ class COCOLoss(SoftmaxCrossEntropyLoss):
         return super().hybrid_forward(F, outputs, label, sample_weight)
 
 
+class SVXSoftmax(SoftmaxCrossEntropyLoss):
+    r"""SVXSoftmax from
+    `"Support Vector Guided Softmax Loss for Face Recognition"
+    <https://arxiv.org/abs/1812.11317>`_paper.
+
+    When use default parameter, the designed SV-X-Softmax loss becomes identical to the original softmax loss.
+
+    Parameters
+    ----------
+    classes: int.
+        Number of classes.
+    s: int.
+        Scale parameter for loss.
+    t: float.
+        Indicator parameter of SV.
+    m1: float.
+        Margin parameter for sphere softmax.
+    m2: float.
+        Margin parameter for cos/am softmax.
+    m3: float.
+        Margin parameter for arc softmax.
+
+    Outputs:
+        - **loss**: loss tensor with shape (batch_size,). Dimensions other than
+          batch_axis are averaged out.
+    """
+
+    def __init__(self, classes, s, t=1, m1=1, m2=0, m3=0, dtype="float32", **kwargs):
+        super().__init__(**kwargs)
+
+        self._classes = classes
+        self._scale = s
+        self._m1, self._m2, self._m3 = m1, m2, m3
+        self._t = t
+
+        self._dtype = dtype
+
+    def hybrid_forward(self, F, pred, label, sample_weight=None):
+        cos_ty = F.pick(pred, label, axis=1, keepdims=True)
+        cos_ty_m = F.cos(self._m1 * F.arccos(cos_ty) + self._m3) - self._m2
+
+        indicator = F.Activation(data=F.broadcast_sub(pred, cos_ty_m), act_type='relu')
+        fc = F.where(indicator, self._t * pred + self._t - 1, pred)
+
+        diff = cos_ty_m - F.pick(fc, label, axis=1, keepdims=True)
+        oh_label = F.one_hot(label, depth=self._classes, on_value=1.0, off_value=0.0, dtype=self._dtype)
+        diff = F.broadcast_mul(oh_label, diff)
+
+        fc = fc + diff
+        fc = fc * self._scale
+        return super().hybrid_forward(F, pred=fc, label=label, sample_weight=sample_weight)
+
+
 _losses = {
     'softmax': SoftmaxCrossEntropyLoss,
     'arcface': ArcLoss,
@@ -755,6 +808,7 @@ _losses = {
     'mpsoss': MPSLoss,
     'gitloss': GitLoss,
     'cocoloss': COCOLoss,
+    "svxsoftmax": SVXSoftmax,
 }
 
 
