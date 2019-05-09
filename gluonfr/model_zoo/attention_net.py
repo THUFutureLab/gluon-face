@@ -254,7 +254,7 @@ class AttentionNetFace(FrBase):
 
     """
 
-    def __init__(self, modules, p, t, r, classes=-1,
+    def __init__(self, classes, modules, p, t, r,
                  weight_norm=False, feature_norm=False, embedding_size=512,
                  need_cls_layer=True, **kwargs):
         super().__init__(classes, embedding_size, weight_norm, feature_norm, need_cls_layer, **kwargs)
@@ -331,18 +331,18 @@ def get_attention_net(classes, num_layers, **kwargs):
     return net
 
 
-def get_attention_face(classes, num_layers, embedding_size, need_cls_layer=True, **kwargs):
+def get_attention_face(classes=-1, num_layers=128, embedding_size=512, need_cls_layer=True, **kwargs):
     r"""AttentionNet Model for 112x112 face images from
     `"Residual Attention Network for Image Classification"
     <https://arxiv.org/abs/1704.06904>`_ paper.
 
     Parameters
     ----------
-    classes : int,
+    classes : int, -1
         Number of classification classes.
-    num_layers : int
+    num_layers : int, 128
         Numbers of layers. Options are 56, 92, 128, 164, 236, 452.
-    embedding_size: int
+    embedding_size: int, 256
         Feature dimensions of the embedding layers.
     need_cls_layer : bool, default True
         Whether to use NormDense output layer.
@@ -353,7 +353,7 @@ def get_attention_face(classes, num_layers, embedding_size, need_cls_layer=True,
     ptr, modules = attention_net_spec[num_layers]
     assert len(ptr) == len(modules) == 3
     p, t, r = ptr
-    net = AttentionNetFace(modules, p, t, r, classes, embedding_size=embedding_size, need_cls_layer=need_cls_layer, **kwargs)
+    net = AttentionNetFace(classes, modules, p, t, r, embedding_size=embedding_size, need_cls_layer=need_cls_layer, **kwargs)
     return net
 
 
