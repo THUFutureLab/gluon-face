@@ -70,7 +70,7 @@ class Bottleneck(nn.HybridBlock):
 
 
 class MobileFaceNet(FrBase):
-    def __init__(self, classes, use_se=False, weight_norm=False,
+    def __init__(self, classes=-1, use_se=False, weight_norm=False,
                  feature_norm=False, need_cls_layer=True, **kwargs):
         super(MobileFaceNet, self).__init__(classes, 128, weight_norm,
                                             feature_norm, need_cls_layer, **kwargs)
@@ -95,7 +95,7 @@ class MobileFaceNet(FrBase):
 
 
 class MobileFaceNet_re(FrBase):
-    def __init__(self, classes, use_se=False, weight_norm=False,
+    def __init__(self, classes=-1, use_se=False, weight_norm=False,
                  feature_norm=False, need_cls_layer=True, **kwargs):
         super(MobileFaceNet_re, self).__init__(classes, 160, weight_norm,
                                                feature_norm, need_cls_layer, **kwargs)
@@ -120,9 +120,25 @@ class MobileFaceNet_re(FrBase):
                                   nn.Flatten())
 
 
-def get_mobile_facenet(classes, **kwargs):
-    return MobileFaceNet(classes, **kwargs)
+def get_mobile_facenet(classes=-1, need_cls_layer=True, **kwargs):
+    r"""
+    Parameters
+    ----------
+    classes : int, -1
+       Number of classification classes.
+    need_cls_layer : bool, default True
+       Whether to use NormDense output layer.
+    """
+    return MobileFaceNet(classes=classes, need_cls_layer=need_cls_layer, **kwargs)
 
 
-def get_mobile_facenet_re(classes, **kwargs):
-    return get_mobile_facenet_re(classes, **kwargs)
+def get_mobile_facenet_re(classes=-1, need_cls_layer=True, **kwargs):
+    r"""
+    Parameters
+    ----------
+    classes : int, -1
+       Number of classification classes.
+    need_cls_layer : bool, default True
+       Whether to use NormDense output layer.
+    """
+    return MobileFaceNet_re(classes=classes, need_cls_layer=need_cls_layer, **kwargs)

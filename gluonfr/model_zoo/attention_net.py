@@ -254,7 +254,7 @@ class AttentionNetFace(FrBase):
 
     """
 
-    def __init__(self, classes, modules, p, t, r,
+    def __init__(self, modules, p, t, r, classes=-1,
                  weight_norm=False, feature_norm=False, embedding_size=512,
                  need_cls_layer=True, **kwargs):
         super().__init__(classes, embedding_size, weight_norm, feature_norm, need_cls_layer, **kwargs)
@@ -331,7 +331,7 @@ def get_attention_net(classes, num_layers, **kwargs):
     return net
 
 
-def get_attention_face(classes, num_layers, embedding_size, **kwargs):
+def get_attention_face(classes, num_layers, embedding_size, need_cls_layer=True, **kwargs):
     r"""AttentionNet Model for 112x112 face images from
     `"Residual Attention Network for Image Classification"
     <https://arxiv.org/abs/1704.06904>`_ paper.
@@ -344,6 +344,8 @@ def get_attention_face(classes, num_layers, embedding_size, **kwargs):
         Numbers of layers. Options are 56, 92, 128, 164, 236, 452.
     embedding_size: int
         Feature dimensions of the embedding layers.
+    need_cls_layer : bool, default True
+        Whether to use NormDense output layer.
     """
     assert num_layers in attention_net_spec, \
         "Invalid number of layers: %d. Options are %s" % (
@@ -351,83 +353,101 @@ def get_attention_face(classes, num_layers, embedding_size, **kwargs):
     ptr, modules = attention_net_spec[num_layers]
     assert len(ptr) == len(modules) == 3
     p, t, r = ptr
-    net = AttentionNetFace(classes, modules, p, t, r, embedding_size=embedding_size, **kwargs)
+    net = AttentionNetFace(modules, p, t, r, classes, embedding_size=embedding_size, need_cls_layer=need_cls_layer, **kwargs)
     return net
 
 
-def attention_net56(classes, **kwargs):
+def attention_net56(classes=-1, need_cls_layer=True, **kwargs):
     r"""AttentionNet 56 Model from
-       `"Residual Attention Network for Image Classification"
-       <https://arxiv.org/abs/1704.06904>`_ paper.
-
-       Parameters
-       ----------
-       classes : int,
-           Number of classification classes.
-       """
-    return get_attention_net(classes, 56, **kwargs)
+    `"Residual Attention Network for Image Classification"
+    <https://arxiv.org/abs/1704.06904>`_ paper.
 
 
-def attention_net92(classes, **kwargs):
+    Parameters
+    ----------
+    classes : int, -1
+       Number of classification classes.
+    need_cls_layer : bool, default True
+       Whether to use NormDense output layer.
+    """
+    return get_attention_net(classes, 56, need_cls_layer=need_cls_layer, **kwargs)
+
+
+def attention_net92(classes=-1, need_cls_layer=True, **kwargs):
     r"""AttentionNet 92 Model from
        `"Residual Attention Network for Image Classification"
        <https://arxiv.org/abs/1704.06904>`_ paper.
 
-       Parameters
-       ----------
-       classes : int,
-           Number of classification classes.
-       """
-    return get_attention_net(classes, 92, **kwargs)
+
+    Parameters
+    ----------
+    classes : int, -1
+       Number of classification classes.
+    need_cls_layer : bool, default True
+       Whether to use NormDense output layer.
+
+    """
+    return get_attention_net(classes, 92, need_cls_layer=need_cls_layer, **kwargs)
 
 
-def attention_net128(classes, **kwargs):
+def attention_net128(classes=-1, need_cls_layer=True, **kwargs):
     r"""AttentionNet 128 Model from
        `"Residual Attention Network for Image Classification"
        <https://arxiv.org/abs/1704.06904>`_ paper.
 
-       Parameters
-       ----------
-       classes : int,
-           Number of classification classes.
-       """
-    return get_attention_net(classes, 128, **kwargs)
+    Parameters
+    ----------
+    classes : int, -1
+       Number of classification classes.
+    need_cls_layer : bool, default True
+       Whether to use NormDense output layer.
+    """
+    return get_attention_net(classes, 128, need_cls_layer=need_cls_layer, **kwargs)
 
 
-def attention_net164(classes, **kwargs):
+def attention_net164(classes=-1, need_cls_layer=True, **kwargs):
     r"""AttentionNet 164 Model from
        `"Residual Attention Network for Image Classification"
        <https://arxiv.org/abs/1704.06904>`_ paper.
 
-       Parameters
-       ----------
-       classes : int,
-           Number of classification classes.
-       """
-    return get_attention_net(classes, 164, **kwargs)
+
+    Parameters
+    ----------
+    classes : int, -1
+       Number of classification classes.
+    need_cls_layer : bool, default True
+       Whether to use NormDense output layer.
+    """
+    return get_attention_net(classes, 164, need_cls_layer=need_cls_layer, **kwargs)
 
 
-def attention_net236(classes, **kwargs):
+def attention_net236(classes=-1, need_cls_layer=True, **kwargs):
     r"""AttentionNet 236 Model from
        `"Residual Attention Network for Image Classification"
        <https://arxiv.org/abs/1704.06904>`_ paper.
 
-       Parameters
-       ----------
-       classes : int,
-           Number of classification classes.
-       """
-    return get_attention_net(classes, 236, **kwargs)
+
+    Parameters
+    ----------
+    classes : int, -1
+       Number of classification classes.
+    need_cls_layer : bool, default True
+       Whether to use NormDense output layer.
+    """
+    return get_attention_net(classes, 236, need_cls_layer=need_cls_layer, **kwargs)
 
 
-def attention_net452(classes, **kwargs):
+def attention_net452(classes=-1, need_cls_layer=True, **kwargs):
     r"""AttentionNet 452 Model from
        `"Residual Attention Network for Image Classification"
        <https://arxiv.org/abs/1704.06904>`_ paper.
 
-       Parameters
-       ----------
-       classes : int,
-           Number of classification classes.
-       """
-    return get_attention_net(classes, 452, **kwargs)
+
+    Parameters
+    ----------
+    classes : int, -1
+       Number of classification classes.
+    need_cls_layer : bool, default True
+       Whether to use NormDense output layer.
+    """
+    return get_attention_net(classes, 452, need_cls_layer=need_cls_layer, **kwargs)

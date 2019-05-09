@@ -92,7 +92,7 @@ class SE_ResNetV2(FrBase):
         Enable thumbnail.
     """
 
-    def __init__(self, block, layers, channels, classes=1000, thumbnail=False,
+    def __init__(self, block, layers, channels, classes=-1, thumbnail=False,
                  embedding_size=512, weight_norm=False, feature_norm=False,
                  need_cls_layer=True, **kwargs):
         super(SE_ResNetV2, self).__init__(classes, embedding_size, weight_norm,
