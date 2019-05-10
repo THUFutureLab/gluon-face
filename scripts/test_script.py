@@ -29,8 +29,6 @@ parser.add_argument('--export-path', type=str, default='',
                     help='Path to save export files.')
 parser.add_argument('--ctx', type=str, default="0",
                     help='Use GPUs to train.')
-parser.add_argument('--dtype', type=str, default='float32',
-                    help='data type for training. default is float32')
 parser.add_argument('--hybrid', action='store_true',
                     help='Whether to use hybrid.')
 opt = parser.parse_args()
@@ -61,7 +59,6 @@ targets = opt.target
 val_sets = [get_recognition_dataset(name, transform=transform_test_flip) for name in targets.split(",")]
 val_datas = [DataLoader(dataset, batch_size, last_batch='keep') for dataset in val_sets]
 
-dtype = opt.dtype
 test_net = get_model(opt.model, need_cls_layer=False)
 test_net.load_parameters(opt.model_params, ctx=ctx, ignore_extra=True)
 
