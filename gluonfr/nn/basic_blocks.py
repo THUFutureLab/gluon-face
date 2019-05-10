@@ -101,7 +101,7 @@ class FrBase(nn.HybridBlock):
         When you only need embedding output, like you are predicting or training with triplet loss,
         you need to set it to False.
     """
-    def __init__(self, classes, embedding_size=512, weight_norm=False, feature_norm=False,
+    def __init__(self, classes=-1, embedding_size=512, weight_norm=False, feature_norm=False,
                  need_cls_layer=True, **kwargs):
         super(FrBase, self).__init__(**kwargs)
         self.need_cls_layer = need_cls_layer
@@ -109,6 +109,7 @@ class FrBase(nn.HybridBlock):
         self.features = None
 
         if need_cls_layer:
+            assert classes > 0, "When need_cls_layer=True, you need to specify a positive number of classes"
             self.output = NormDense(classes, weight_norm, feature_norm,
                                     in_units=embedding_size, prefix='output_')
 
