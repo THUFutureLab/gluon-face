@@ -63,7 +63,7 @@ test_net = get_model(opt.model, need_cls_layer=False)
 test_net.load_parameters(opt.model_params, ctx=ctx, ignore_extra=True)
 
 
-def validate(nfolds=10, ):
+def validate(nfolds=10):
     metric = FaceVerification(nfolds)
     metric_flip = FaceVerification(nfolds)
     for loader, name in zip(val_datas, targets.split(",")):
