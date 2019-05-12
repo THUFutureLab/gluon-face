@@ -54,7 +54,7 @@ face/
 ```
 We use `~/.mxnet/datasets` as default dataset root to match mxnet setting.
 
-#### [Model_Zoo](wiki/Model_Zoo):
+#### [Model_Zoo](/wiki/Model_Zoo):
 mobile_facenet, res_attention_net, se_resnet... 
 
 
