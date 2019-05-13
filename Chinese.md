@@ -7,7 +7,7 @@
 Gluon-fr支持python3.5或以上版本.
 同时需要Mxnet和gluon-cv,可以用以下命令安装它们.
 - Mxnet建议安装稳定版或者nightly版,gluon-cv必须安装nightly版.
-- 如果你想要训练必须要GPUs.
+- 如果想要训练必须要GPU.
 ```shell
 pip install gluoncv --pre
 pip install mxnet-mkl --pre --upgrade
@@ -52,6 +52,7 @@ face/
 #### 模型:
 mobile_facenet, res_attention_net, se_resnet...
 
+可以查看我们的[model_zoo](/wiki/Model_Zoo)获取更多信息
 #### Loss函数:
 GluonFR 提供了在人脸识别中主流的loss函数, 包括 SoftmaxCrossEntropyLoss, ArcLoss, TripletLoss, 
 RingLoss, CosLoss, L2Softmax, ASoftmax, CenterLoss, ContrastiveLoss, ... , 并且我们还会随时更新它们.  
