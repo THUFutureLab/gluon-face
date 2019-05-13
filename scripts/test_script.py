@@ -27,6 +27,8 @@ parser.add_argument('--export', action='store_true',
                     help='Whether to export model.')
 parser.add_argument('--export-path', type=str, default='',
                     help='Path to save export files.')
+parser.add_argument('--dtype', type=str, default='float32',
+                    help='data type for training. default is float32')
 parser.add_argument('--ctx', type=str, default="0",
                     help='Use GPUs to train.')
 parser.add_argument('--hybrid', action='store_true',
@@ -60,6 +62,7 @@ val_sets = [get_recognition_dataset(name, transform=transform_test_flip) for nam
 val_datas = [DataLoader(dataset, batch_size, last_batch='keep') for dataset in val_sets]
 
 test_net = get_model(opt.model, need_cls_layer=False)
+test_net.cast(opt.dtype)
 test_net.load_parameters(opt.model_params, ctx=ctx, ignore_extra=True)
 
 
@@ -80,14 +83,14 @@ def validate(nfolds=10):
             embedding0s_flip = [test_net(X) for X in data0s_flip]
             embedding1s_flip = [test_net(X) for X in data1s_flip]
 
-            emb0s = [sklearn.preprocessing.normalize(e.asnumpy()) for e in embedding0s]
-            emb1s = [sklearn.preprocessing.normalize(e.asnumpy()) for e in embedding1s]
+            emb0s = [nd.L2Normalization(e, mode='instance') for e in embedding0s]
+            emb1s = [nd.L2Normalization(e, mode='instance') for e in embedding1s]
             for embedding0, embedding1, issame in zip(emb0s, emb1s, issame_list):
                 metric.update(issame, embedding0, embedding1)
 
-            emb0s_flip = [sklearn.preprocessing.normalize(np.concatenate([e.asnumpy(), ef.asnumpy()], 1))
+            emb0s_flip = [nd.L2Normalization(nd.concatenate([e, ef], 1), mode='instance')
                           for e, ef in zip(embedding0s, embedding0s_flip)]
-            emb1s_flip = [sklearn.preprocessing.normalize(np.concatenate([e.asnumpy(), ef.asnumpy()], 1))
+            emb1s_flip = [nd.L2Normalization(nd.concatenate([e, ef], 1), mode='instance')
                           for e, ef in zip(embedding1s, embedding1s_flip)]
             for embedding0, embedding1, issame in zip(emb0s_flip, emb1s_flip, issame_list):
                 metric_flip.update(issame, embedding0, embedding1)
@@ -103,7 +106,7 @@ if __name__ == '__main__':
         test_net.hybridize()
     validate()
     if opt.export:
-        assert opt.hybrid is True, 'Export need --hybrid to be True.'
+        assert opt.hybrid is True, 'Export need --hybrid.'
         expot_name = os.path.join(export_path, opt.model)
         test_net.export(expot_name)
         print('export model is saved at {}'.format(expot_name))
