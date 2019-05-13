@@ -1,5 +1,5 @@
 # Gluon FR Toolkit
-[Chinese version](Chinese.md)
+[Chinese version](README_CN.md)
 
 GluonFR is a toolkit based on MXnet-Gluon, provides SOTA deep learning algorithm and models in face recognition.
 
