@@ -14,5 +14,5 @@ def test_model_zoo():
     for model_name in models:
         model = get_model(model_name, classes=10, weight_norm=True, feature_norm=True)
         model.initialize(ctx=ctx)
-        _ = model(data)
+        model(data)
         mx.nd.waitall()
