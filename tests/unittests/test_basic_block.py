@@ -29,10 +29,10 @@ def get_model(request):
     return Model(*request.param)
 
 
-@try_gpu()
+@try_gpu(0)
 def test_model(get_model):
     ctx = mx.context.current_context()
-    x = nd.random.normal(shape=(1, 3, 112, 112), ctx=ctx)
+    x = nd.random.normal(shape=(2, 3, 112, 112), ctx=ctx)
     model = get_model
     model.initialize(ctx=ctx)
     model(x)

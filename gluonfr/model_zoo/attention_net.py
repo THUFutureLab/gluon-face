@@ -327,7 +327,7 @@ def get_attention_net(classes, num_layers, **kwargs):
     ptr, modules = attention_net_spec[num_layers]
     assert len(ptr) == len(modules) == 3
     p, t, r = ptr
-    net = AttentionNet(classes, modules, p, t, r, **kwargs)
+    net = AttentionNetFace(classes, modules, p, t, r, **kwargs)
     return net
 
 
