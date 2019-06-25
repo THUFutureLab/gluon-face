@@ -70,6 +70,7 @@ class Bottleneck(nn.HybridBlock):
 
 
 class MobileFaceNet(FrBase):
+    """Mobile FaceNet"""
     def __init__(self, classes=-1, use_se=False, weight_norm=False,
                  feature_norm=False, need_cls_layer=True, **kwargs):
         super(MobileFaceNet, self).__init__(classes, 128, weight_norm,
@@ -95,6 +96,7 @@ class MobileFaceNet(FrBase):
 
 
 class MobileFaceNet_re(FrBase):
+    """Mobile FaceNet re"""
     def __init__(self, classes=-1, use_se=False, weight_norm=False,
                  feature_norm=False, need_cls_layer=True, **kwargs):
         super(MobileFaceNet_re, self).__init__(classes, 160, weight_norm,

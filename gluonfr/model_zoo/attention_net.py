@@ -41,13 +41,19 @@ class AttentionBlock(nn.HybridBlock):
 
         Parameters
         ----------
-        :param channels: int. Number of output channels.
-        :param out_size: int. Size of the output feature map, now it only supports square shape.
-        :param stage: int. Stage described in Figure 2.
-        :param p: int. Number of pre-processing Residual Units before split into trunk branch and mask branch.
-        :param t: int. Number of Residual Units in trunk branch.
-        :param r: int. Number of Residual Units between adjacent pooling layer in the mask branch.
-        :param kwargs:
+        channels: int.
+            Number of output channels.
+        out_size: int.
+            Size of the output feature map, now it only supports square shape.
+        stage: int.
+            Stage described in Figure 2.
+        p: int.
+            Number of pre-processing Residual Units before split into trunk branch and mask branch.
+        t: int.
+            Number of Residual Units in trunk branch.
+        r: int.
+            Number of Residual Units between adjacent pooling layer in the mask branch.
+        kwargs:
         """
         super().__init__(**kwargs)
         with self.name_scope():
@@ -188,12 +194,17 @@ class AttentionNet(nn.HybridBlock):
 
     Parameters
     ----------
-    :param classes: int. Number of classification classes.
-    :param modules: list. The number of Attention Module in each stage.
-    :param p: int. Number of pre-processing Residual Units before split into trunk branch and mask branch.
-    :param t: int. Number of Residual Units in trunk branch.
-    :param r: int. Number of Residual Units between adjacent pooling layer in the mask branch.
-    :param kwargs:
+    classes: int.
+        Number of classification classes.
+    modules: list.
+        The number of Attention Module in each stage.
+    p: int.
+        Number of pre-processing Residual Units before split into trunk branch and mask branch.
+    t: int.
+        Number of Residual Units in trunk branch.
+    r: int.
+        Number of Residual Units between adjacent pooling layer in the mask branch.
+    kwargs:
 
     """
 
@@ -244,13 +255,32 @@ class AttentionNet(nn.HybridBlock):
 
 
 class AttentionNetFace(FrBase):
-    r"""
-    AttentionNet Model for input 112x112.
+    r"""AttentionNet Model for input 112x112.
 
     Parameters
     ----------
-    :param classes: int. Number of classification classes.
-    :param kwargs:
+    classes: int.
+        Number of classification classes.
+    modules: list.
+        The number of Attention Module in each stage.
+    p: int.
+        Number of pre-processing Residual Units before split into trunk branch and mask branch.
+    t: int.
+        Number of Residual Units in trunk branch.
+    r: int.
+        Number of Residual Units between adjacent pooling layer in the mask branch.
+    embedding_size : int
+        Units of embedding layer.
+    weight_norm : bool, default False
+        Whether use weight norm in NormDense layer.
+    feature_norm : bool, default False
+        Whether use features norm in NormDense layer.
+    need_cls_layer : bool, default True
+        Whether use NormDense layer.Normally it depends on your loss function.
+        When you use Softmax, ArcLoss or based on Softmax loss, you need to set it to True.
+        When you only need embedding output, like you are predicting or training with triplet loss,
+        you need to set it to False.
+
 
     """
 
@@ -358,10 +388,7 @@ def get_attention_face(classes=-1, num_layers=128, embedding_size=512, need_cls_
 
 
 def attention_net56(classes=-1, need_cls_layer=True, **kwargs):
-    r"""AttentionNet 56 Model from
-    `"Residual Attention Network for Image Classification"
-    <https://arxiv.org/abs/1704.06904>`_ paper.
-
+    r"""AttentionNet 56 Model for face recognition.
 
     Parameters
     ----------
@@ -370,14 +397,11 @@ def attention_net56(classes=-1, need_cls_layer=True, **kwargs):
     need_cls_layer : bool, default True
        Whether to use NormDense output layer.
     """
-    return get_attention_net(classes, 56, need_cls_layer=need_cls_layer, **kwargs)
+    return get_attention_face(classes, 56, need_cls_layer=need_cls_layer, **kwargs)
 
 
 def attention_net92(classes=-1, need_cls_layer=True, **kwargs):
-    r"""AttentionNet 92 Model from
-       `"Residual Attention Network for Image Classification"
-       <https://arxiv.org/abs/1704.06904>`_ paper.
-
+    r"""AttentionNet 92 Model for face recognition.
 
     Parameters
     ----------
@@ -387,13 +411,11 @@ def attention_net92(classes=-1, need_cls_layer=True, **kwargs):
        Whether to use NormDense output layer.
 
     """
-    return get_attention_net(classes, 92, need_cls_layer=need_cls_layer, **kwargs)
+    return get_attention_face(classes, 92, need_cls_layer=need_cls_layer, **kwargs)
 
 
 def attention_net128(classes=-1, need_cls_layer=True, **kwargs):
-    r"""AttentionNet 128 Model from
-       `"Residual Attention Network for Image Classification"
-       <https://arxiv.org/abs/1704.06904>`_ paper.
+    r"""AttentionNet 128 Model for face recognition.
 
     Parameters
     ----------
@@ -402,14 +424,11 @@ def attention_net128(classes=-1, need_cls_layer=True, **kwargs):
     need_cls_layer : bool, default True
        Whether to use NormDense output layer.
     """
-    return get_attention_net(classes, 128, need_cls_layer=need_cls_layer, **kwargs)
+    return get_attention_face(classes, 128, need_cls_layer=need_cls_layer, **kwargs)
 
 
 def attention_net164(classes=-1, need_cls_layer=True, **kwargs):
-    r"""AttentionNet 164 Model from
-       `"Residual Attention Network for Image Classification"
-       <https://arxiv.org/abs/1704.06904>`_ paper.
-
+    r"""AttentionNet 164 Model for face recognition.
 
     Parameters
     ----------
@@ -418,14 +437,11 @@ def attention_net164(classes=-1, need_cls_layer=True, **kwargs):
     need_cls_layer : bool, default True
        Whether to use NormDense output layer.
     """
-    return get_attention_net(classes, 164, need_cls_layer=need_cls_layer, **kwargs)
+    return get_attention_face(classes, 164, need_cls_layer=need_cls_layer, **kwargs)
 
 
 def attention_net236(classes=-1, need_cls_layer=True, **kwargs):
-    r"""AttentionNet 236 Model from
-       `"Residual Attention Network for Image Classification"
-       <https://arxiv.org/abs/1704.06904>`_ paper.
-
+    r"""AttentionNet 236 Model for face recognition.
 
     Parameters
     ----------
@@ -434,14 +450,11 @@ def attention_net236(classes=-1, need_cls_layer=True, **kwargs):
     need_cls_layer : bool, default True
        Whether to use NormDense output layer.
     """
-    return get_attention_net(classes, 236, need_cls_layer=need_cls_layer, **kwargs)
+    return get_attention_face(classes, 236, need_cls_layer=need_cls_layer, **kwargs)
 
 
 def attention_net452(classes=-1, need_cls_layer=True, **kwargs):
-    r"""AttentionNet 452 Model from
-       `"Residual Attention Network for Image Classification"
-       <https://arxiv.org/abs/1704.06904>`_ paper.
-
+    r"""AttentionNet 452 Model for face recognition.
 
     Parameters
     ----------
@@ -450,4 +463,4 @@ def attention_net452(classes=-1, need_cls_layer=True, **kwargs):
     need_cls_layer : bool, default True
        Whether to use NormDense output layer.
     """
-    return get_attention_net(classes, 452, need_cls_layer=need_cls_layer, **kwargs)
+    return get_attention_face(classes, 452, need_cls_layer=need_cls_layer, **kwargs)

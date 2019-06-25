@@ -28,6 +28,7 @@ from mxnet.gluon.nn import HybridBlock
 
 
 class NormDense(HybridBlock):
+    """Norm Dense"""
     def __init__(self, classes, weight_norm=False, feature_norm=False,
                  dtype='float32', weight_initializer=None, in_units=0, **kwargs):
         super().__init__(**kwargs)
@@ -61,6 +62,7 @@ class NormDense(HybridBlock):
 
 
 class SELayer(HybridBlock):
+    """SE Layer"""
     def __init__(self, channel, in_channel, reduction=16, **kwargs):
         super(SELayer, self).__init__(**kwargs)
         with self.name_scope():

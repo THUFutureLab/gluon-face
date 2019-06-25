@@ -25,7 +25,7 @@ import numpy as np
 from mxnet import nd, init
 from mxnet.gluon.loss import Loss, SoftmaxCrossEntropyLoss
 
-__all__ = ["get_loss", "SoftmaxCrossEntropyLoss", "ArcLoss", "TripletLoss", "RingLoss",
+__all__ = ["get_loss", "get_loss_list", "ArcLoss", "TripletLoss", "RingLoss",
            "CosLoss", "L2Softmax", "ASoftmax", "CenterLoss", "ContrastiveLoss", "LGMLoss",
            "MPSLoss", "GitLoss", "COCOLoss", "SVXSoftmax"]
 numeric_types = (float, int, np.generic)
@@ -67,6 +67,69 @@ def _reshape_like(F, x, y):
     return x.reshape(y.shape) if F is nd.ndarray else F.reshape_like(x, y)
 
 
+# SoftmaxCrossEntropyLoss.__doc__ = \
+#     r"""Computes the softmax cross entropy loss. (alias: SoftmaxCELoss)
+#
+#     If `sparse_label` is `True` (default), label should contain integer
+#     category indicators:
+#
+#     .. math::
+#
+#         \DeclareMathOperator{softmax}{softmax}
+#
+#         p = \softmax({pred})
+#
+#         L = -\sum_i \log p_{i,{label}_i}
+#
+#     `label`'s shape should be `pred`'s shape with the `axis` dimension removed.
+#     i.e. for `pred` with shape (1,2,3,4) and `axis = 2`, `label`'s shape should
+#     be (1,2,4).
+#
+#     If `sparse_label` is `False`, `label` should contain probability distribution
+#     and `label`'s shape should be the same with `pred`:
+#
+#     .. math::
+#
+#         p = \softmax({pred})
+#
+#         L = -\sum_i \sum_j {label}_j \log p_{ij}
+#
+#     Parameters
+#     ----------
+#     axis : int, default -1
+#         The axis to sum over when computing softmax and entropy.
+#     sparse_label : bool, default True
+#         Whether label is an integer array instead of probability distribution.
+#     from_logits : bool, default False
+#         Whether input is a log probability (usually from log_softmax) instead
+#         of unnormalized numbers.
+#     weight : float or None
+#         Global scalar weight for loss.
+#     batch_axis : int, default 0
+#         The axis that represents mini-batch.
+#
+#
+#     Inputs:
+#         - **pred**: the prediction tensor, where the `batch_axis` dimension
+#           ranges over batch size and `axis` dimension ranges over the number
+#           of classes.
+#         - **label**: the truth tensor. When `sparse_label` is True, `label`'s
+#           shape should be `pred`'s shape with the `axis` dimension removed.
+#           i.e. for `pred` with shape (1,2,3,4) and `axis = 2`, `label`'s shape
+#           should be (1,2,4) and values should be integers between 0 and 2. If
+#           `sparse_label` is False, `label`'s shape must be the same as `pred`
+#           and values should be floats in the range `[0, 1]`.
+#         - **sample_weight**: element-wise weighting tensor. Must be broadcastable
+#           to the same shape as label. For example, if label has shape (64, 10)
+#           and you want to weigh each sample in the batch separately,
+#           sample_weight should have shape (64, 1).
+#
+#     Outputs:
+#         - **loss**: loss tensor with shape (batch_size,). Dimenions other than
+#           batch_axis are averaged out.
+#     """
+
+
 class L2Softmax(SoftmaxCrossEntropyLoss):
     r"""L2Softmax from
     `"L2-constrained Softmax Loss for Discriminative Face Verification"
@@ -84,6 +147,7 @@ class L2Softmax(SoftmaxCrossEntropyLoss):
         classifying a feature.
     from_normx: bool, default is False.
          Whether input has already been normalized.
+
 
     Outputs:
         - **loss**: loss tensor with shape (batch_size,). Dimensions other than
@@ -161,6 +225,7 @@ class ArcLoss(SoftmaxCrossEntropyLoss):
         Margin parameter for loss.
     s: int.
         Scale parameter for loss.
+
 
     Outputs:
         - **loss**: loss tensor with shape (batch_size,). Dimensions other than
@@ -256,17 +321,20 @@ class TripletLoss(Loss):
 
 class ContrastiveLoss(Loss):
     r"""Computes the contrastive loss.
+    See `"Dimensionality Reduction by Learning an Invariant Mapping"
+    <http://yann.lecun.com/exdb/publis/pdf/hadsell-chopra-lecun-06.pdf>`_ paper.
     This loss encourages the embedding to be close to each other for
     the samples of the same label and the embedding to be far apart at least
     by the margin constant for the samples of different labels.
-    See: http://yann.lecun.com/exdb/publis/pdf/hadsell-chopra-lecun-06.pdf
+
+
     Parameters
     ----------
     margin: float, default is 1.
         Margin term in the loss definition.
 
-    Inputs:
 
+    Inputs:
         - **anchor**: prediction tensor. Embeddings should be l2 normalized.
         - **positive**: positive example tensor with arbitrary shape. Must have
           the same size as anchor. Embeddings should be l2 normalized.
@@ -290,21 +358,20 @@ class ContrastiveLoss(Loss):
 
 
 class RingLoss(SoftmaxCrossEntropyLoss):
-    """Computes the Ring Loss from
+    r"""Computes the Ring Loss from
     `"Ring loss: Convex Feature Normalization for Face Recognition"
-    <https://arxiv.org/abs/1803.00130>`_paper.
+    <https://arxiv.org/abs/1803.00130>`_ paper.
 
     .. math::
-        p = \softmax({pred})
-
-        L_SM = -\sum_i \log p_{i,{label}_i}
-
-        L_R = \frac{\lambda}{2m} \sum_{i=1}^{m} (\Vert \mathcal{F}({x}_i)\Vert_2 - R )^2
+        L = -\sum_i \log \softmax({pred})_{i,{label}_i} +  \frac{\lambda}{2m} \sum_{i=1}^{m}
+         (\Vert \mathcal{F}({x}_i)\Vert_2 - R )^2
 
     Parameters
     ----------
+
     lamda: float
         The loss weight enforcing a trade-off between the softmax loss and ring loss.
+
 
     Outputs:
         - **loss**: loss tensor with shape (batch_size,). Dimensions other than
@@ -345,6 +412,7 @@ class ASoftmax(SoftmaxCrossEntropyLoss):
         Margin parameter for loss.
     s: int.
         Scale parameter for loss.
+
 
     Outputs:
         - **loss**: loss tensor with shape (batch_size,). Dimensions other than
@@ -407,9 +475,10 @@ class ASoftmax(SoftmaxCrossEntropyLoss):
 
 
 class CenterLoss(SoftmaxCrossEntropyLoss):
-    """Computes the Center Loss from
+    r"""Computes the Center Loss from
     `"A Discriminative Feature Learning Approach for Deep Face Recognition"
-    <http://ydwen.github.io/papers/WenECCV16.pdf>`_paper.
+    <http://ydwen.github.io/papers/WenECCV16.pdf>`_ paper.
+
     Implementation is refer to
     "https://github.com/ShownX/mxnet-center-loss/blob/master/center_loss.py"
 
@@ -420,6 +489,7 @@ class CenterLoss(SoftmaxCrossEntropyLoss):
 
     lamda: float
         The loss weight enforcing a trade-off between the softmax loss and center loss.
+
 
     Outputs:
         - **loss**: loss tensor with shape (batch_size,). Dimensions other than
@@ -448,11 +518,13 @@ class CenterLoss(SoftmaxCrossEntropyLoss):
 
 
 class LGMLoss(Loss):
-    """LGM Loss from
+    r"""LGM Loss from
     `"Rethinking Feature Distribution for Loss Functions in Image Classification"
-    <https://arxiv.org/abs/1803.02988>`_paper.
+    <https://arxiv.org/abs/1803.02988>`_ paper.
+
     Implementation is refer to
     https://github.com/LeeJuly30/L-GM-Loss-For-Gluon/blob/master/L_GM.py
+
 
     Parameters
     ----------
@@ -506,9 +578,10 @@ class LGMLoss(Loss):
 
 
 class RangeLoss(Loss):
-    """Range Loss from
+    r"""Range Loss from
     `"Range Loss for Deep Face Recognition with Long-tail"
-    <https://arxiv.org/abs/1611.08976>`_paper.
+    <https://arxiv.org/abs/1611.08976>`_ paper.
+
     Implementation is refer to
     https://github.com/LeeJuly30/RangeLoss-For-Gluno/blob/master/RangeLossForGluon.py
 
@@ -587,14 +660,16 @@ class RangeLoss(Loss):
 
 
 class MPSLoss(Loss):
-    """Computes the MPS Loss from
+    r"""Computes the MPS Loss from
     `"DocFace: Matching ID Document Photos to Selfies"
-    <https://arxiv.org/abs/1805.02283>`_paper.
+    <https://arxiv.org/abs/1805.02283>`_ paper.
+
 
     Parameters
     ----------
     m: float
         Margin parameter for loss.
+
 
     Outputs:
         - **loss**: loss tensor with shape (batch_size,). Dimensions other than
@@ -646,9 +721,9 @@ class MPSLoss(Loss):
 
 
 class GitLoss(SoftmaxCrossEntropyLoss):
-    """Computes the Git Loss from
+    r"""Computes the Git Loss from
     `"Git Loss for Deep Face Recognition"
-    <https://arxiv.org/abs/1807.08512>`_paper.
+    <https://arxiv.org/abs/1807.08512>`_ paper.
 
     This implementation require the batch size not changing in training or validation.
     Commonly, it is ok, as when we train models last batch discard is applied, and no need
@@ -666,6 +741,8 @@ class GitLoss(SoftmaxCrossEntropyLoss):
         The loss weight enforcing a trade-off between the softmax loss and git loss.
     batch_size_per_gpu: int.
         This size is sample numbers in each gpu or device, not total batch size
+
+
     Outputs:
         - **loss**: loss tensor with shape (batch_size,). Dimensions other than
           batch_axis are averaged out.
@@ -704,11 +781,12 @@ class GitLoss(SoftmaxCrossEntropyLoss):
 
 
 class COCOLoss(SoftmaxCrossEntropyLoss):
-    """Computes the COCO Loss from
+    r"""Computes the COCO Loss from
     `"Rethinking Feature Discrimination and Polymerization for Large-scale Recognition"
-    <https://arxiv.org/abs/1710.00870>`_paper.
+    <https://arxiv.org/abs/1710.00870>`_ paper.
 
     This loss can be replaced by NormDense with Softmax, it is not recommended to use this.
+
 
     Parameters
     ----------
@@ -719,6 +797,7 @@ class COCOLoss(SoftmaxCrossEntropyLoss):
     alpha: float.
         The scaling parameter, a hypersphere with small alpha
         will limit surface area for embedding features.
+
 
     Outputs:
         - **loss**: loss tensor with shape (batch_size,). Dimensions other than
@@ -744,7 +823,7 @@ class COCOLoss(SoftmaxCrossEntropyLoss):
 class SVXSoftmax(SoftmaxCrossEntropyLoss):
     r"""SVXSoftmax from
     `"Support Vector Guided Softmax Loss for Face Recognition"
-    <https://arxiv.org/abs/1812.11317>`_paper.
+    <https://arxiv.org/abs/1812.11317>`_ paper.
 
     When use default parameter, the designed SV-X-Softmax loss becomes identical to the original softmax loss.
 
@@ -762,6 +841,7 @@ class SVXSoftmax(SoftmaxCrossEntropyLoss):
         Margin parameter for cos/am softmax.
     m3: float.
         Margin parameter for arc softmax.
+
 
     Outputs:
         - **loss**: loss tensor with shape (batch_size,). Dimensions other than
@@ -813,13 +893,15 @@ _losses = {
 
 
 def get_loss(name, **kwargs):
-    """
+    """Return the loss by name.
+
     Parameters
     ----------
-    name : str
-        Name
-    kwargs : str
-        Params
+    name : str.
+        Available losses name in gluon face
+    kwargs : str.
+        Check the docs for details.
+
     Returns
     -------
     HybridBlock
@@ -836,9 +918,10 @@ def get_loss(name, **kwargs):
 
 def get_loss_list():
     """Get the entire list of loss names in losses.
+
     Returns
     -------
-    list of str
+    list of str.
         Entire list of loss names in losses.
     """
     return _losses.keys()
