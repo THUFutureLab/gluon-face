@@ -23,33 +23,7 @@
 
 from .dataset import *
 
-"""
-lfw:
-`"Labeled Faces in the Wild: A Database for Studying Face Recognition in Unconstrained Environments"
- <http://vis-www.cs.umass.edu/lfw/lfw.pdf>_paper`
 
-calfw:
-`"A Database for Studying Cross-Age Face Recognition in Unconstrained Environments"
- <http://arxiv.org/abs/1708.08197>_paper`
- 
-cplfw:
-`"Cross-pose LFW: A database for studying cross-pose face recognition in unconstrained environments"
- <http://www.whdeng.cn/CPLFW/Cross-Pose-LFW.pdf>_paper`
-
-cfp_fp, cfp_ff:
-`"Frontal to Profile Face Verification in the Wild"
- <http://www.cfpw.io/paper.pdf>_paper`
-
-agedb_30:
-`"AgeDB: the first manually collected, in-the-wild age database"
- <https://ibug.doc.ic.ac.uk/media/uploads/documents/agedb.pdf>_paper`
-
-vgg2_fp:
-`"VGGFace2: A dataset for recognising faces across pose and age"
- <https://arxiv.org/abs/1710.08092>_paper`
-
- 
-"""
 datasets = {"lfw": FRValDataset,
             "calfw": FRValDataset,
             "cplfw": FRValDataset,

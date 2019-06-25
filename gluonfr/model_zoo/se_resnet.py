@@ -7,13 +7,14 @@ It's proposed from  ArcFace paper as SE-LResNet.
 `"ArcFace: Additive Angular Margin Loss for Deep Face Recognition"
 <https://arxiv.org/pdf/1801.07698.pdf>`_ paper.
 """
-__all__ = ['get_se_resnet', 'se_resnet18_v2', 'se_resnet34_v2',
-           'se_resnet50_v2', 'se_resnet101_v2', 'se_resnet152_v2']
-
 from mxnet.gluon import nn
-from mxnet.gluon.block import HybridBlock
+from mxnet.gluon.nn import HybridBlock
 from mxnet.gluon.model_zoo.vision.resnet import _conv3x3
 from ..nn.basic_blocks import FrBase, SELayer
+
+
+__all__ = ['get_se_resnet', 'se_resnet18_v2', 'se_resnet34_v2',
+           'se_resnet50_v2', 'se_resnet101_v2', 'se_resnet152_v2']
 
 
 class SE_BottleneckV2(HybridBlock):

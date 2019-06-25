@@ -34,7 +34,7 @@ __all__ = ["FRValDataset",
 
 
 class FRTrainRecordDataset(RecordFileDataset):
-    """A dataset wrapping over a rec serialized file provided by InsightFace Repo.
+    r"""A dataset wrapping over a rec serialized file provided by InsightFace Repo.
 
     Parameters
     ----------
@@ -42,8 +42,9 @@ class FRTrainRecordDataset(RecordFileDataset):
     root : str. Path to face folder. Default is '$(HOME)/mxnet/datasets/face'
     transform : function, default None
         A user defined callback that transforms each sample. For example:
-    ::
-        transform=lambda data, label: (data.astype(np.float32)/255, label)
+        ::
+
+            transform=lambda data, label: (data.astype(np.float32)/255, label)
     """
 
     def __init__(self, name, root=os.path.expanduser('~/.mxnet/datasets/face'), flag=1, transform=None):
@@ -83,8 +84,9 @@ class FRValDataset(Dataset):
     root : str. Path to face folder. Default is '$(HOME)/mxnet/datasets/face'
     transform : callable, default None
         A function that takes data and transforms them:
-    ::
-        transform = lambda data: data.astype(np.float32)/255
+        ::
+
+            transform = lambda data: data.astype(np.float32)/255
 
     """
 

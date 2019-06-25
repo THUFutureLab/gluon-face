@@ -29,7 +29,7 @@ __all__ = ["FaceVerification"]
 
 
 class FaceVerification(mx.metric.EvalMetric):
-    """ Compute confusion matrix of 1:1 problem in face verification or other fields.
+    r""" Compute confusion matrix of 1:1 problem in face verification or other fields.
     Use update() to collect the outputs and compute distance in each batch, then use get() to compute the
     confusion matrix and accuracy of the val dataset.
 
