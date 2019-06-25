@@ -76,13 +76,15 @@ def _check_valid_image(s):
 
 
 class FRValDataset(Dataset):
-    """A dataset wrapping over a pickle serialized (.bin) file provided by InsightFace Repo.
+    r"""A dataset wrapping over a pickle serialized (.bin) file provided by InsightFace Repo.
 
     Parameters
     ----------
-    name : str. Name of val dataset.
-    root : str. Path to face folder. Default is '$(HOME)/mxnet/datasets/face'
-    transform : callable, default None
+    name : str.
+        Name of val dataset.
+    root : str.
+        Path to face folder. Default is '$(HOME)/mxnet/datasets/face'
+    transform : callable, default None.
         A function that takes data and transforms them:
         ::
 
