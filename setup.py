@@ -35,10 +35,8 @@ requirements = [
     'numpy',
     'tqdm',
     'requests',
-    # 'mxnet',
     'matplotlib',
     'seaborn',
-    # 'Pillow',
     'scipy',
     'scikit-learn'
 ]
@@ -48,6 +46,7 @@ setup(
     name='gluonfr',
     version=VERSION,
     author='haoxintong',
+    author_email="haoxintongpku@gmail.com",
     url='https://github.com/THUFutureLab/gluon-face',
     description='Gluon FR Toolkit',
     long_description=long_description,
