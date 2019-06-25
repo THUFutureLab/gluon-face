@@ -98,7 +98,7 @@ To be continued.
 - Other losses
 - Dataloader for loss depend on how to provide batches like Triplet, ContrastiveLoss, RangeLoss...
 - Try GluonCV resnetV1b/c/d/ to improve performance
-- Create hosted docs
+- [x]Create hosted docs
 - Test module
 - [x] Pypi package
 
