@@ -2,6 +2,7 @@
 [![Documentation Status](https://readthedocs.org/projects/gluon-face/badge/?version=latest)](https://gluon-face.readthedocs.io/en/latest/?badge=latest)
 
 [Chinese version](README_CN.md)
+
 GluonFR is a toolkit based on MXnet-Gluon, provides SOTA deep learning algorithm and models in face recognition.
 
 ## Installation
@@ -104,7 +105,7 @@ To be continued.
 
 ## Docs
 
-Please checkout [link](https://gluon-face.readthedocs.io/en/latest/)  
+Please checkout [link](https://gluon-face.readthedocs.io/en/latest/).  
 
 ## Authors
 { [haoxintong](https://github.com/haoxintong) [Yangxv](https://github.com/PistonY) [Haoyadong](https://github.com/jiqirenno1) [Sunhao](https://github.com/smartadpole) }
