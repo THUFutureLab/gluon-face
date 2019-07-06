@@ -122,7 +122,7 @@ source_suffix = ['.rst', '.md']
 master_doc = 'index'
 
 # General information about the project.
-project = 'GluonFace'
+project = 'Gluon Face'
 copyright = '2019, haoxintong, yangxv'
 author = 'haoxintong, yangxv'
 
