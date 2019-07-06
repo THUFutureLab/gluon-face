@@ -5,6 +5,8 @@ Gluon Face is a toolkit based on MXnet Gluon, provides SOTA deep learning
 algorithm and models in face recognition. If you are new to mxnet, please check out
 `dmlc 60-minute crash course <http://gluon-crash-course.mxnet.io/>`__.
 
+.. hint::
+    For Chinese readers, here is the `zh-doc <https://gluon-face.readthedocs.io/zh/latest/index.html>`_.
 
 Gluon Face provides implement of losses in recent, including SoftmaxCrossEntropyLoss, ArcLoss,
 TripletLoss, RingLoss, CosLoss, L2Softmax, ASoftmax, CenterLoss, ContrastiveLoss, ... ,
