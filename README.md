@@ -87,7 +87,7 @@ later we will give our results of these method with same train data and network.
 |LGM Loss|[1803.02988](https://arxiv.org/abs/1803.02988)|<img src="resources/mnist-euclidean/LGMloss-train-epoch100.png"/>|99.20±0.03|
 
 ## Pretrained Models
-To be continued.
+See [Model Zoo](https://gluon-face.readthedocs.io/en/latest/model_zoo.html) in doc.
 
 ## Todo
 
@@ -96,9 +96,9 @@ To be continued.
 - Other losses
 - Dataloader for loss depend on how to provide batches like Triplet, ContrastiveLoss, RangeLoss...
 - Try GluonCV resnetV1b/c/d/ to improve performance
-- [x]Create hosted docs
+- ~~Create hosted docs~~
 - Test module
-- [x] Pypi package
+- ~~Pypi package~~
 
 
 ## Docs
