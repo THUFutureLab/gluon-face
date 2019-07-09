@@ -10,7 +10,12 @@ algorithm and models in face recognition. If you are new to mxnet, please check 
 
 Gluon Face provides implement of losses in recent, including SoftmaxCrossEntropyLoss, ArcLoss,
 TripletLoss, RingLoss, CosLoss, L2Softmax, ASoftmax, CenterLoss, ContrastiveLoss, ... ,
-and we will keep updating in future. If there is any method we overlooked, please open an
+and we will keep updating in future.
+
+.. hint::
+    Github: see details in `gluon face <https://github.com/THUFutureLab/gluon-face>`_.
+
+If there is any method we overlooked, please open an
 `issue <https://github.com/THUFutureLab/gluon-face/issues>`__.
 
 
