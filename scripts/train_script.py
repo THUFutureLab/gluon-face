@@ -63,6 +63,8 @@ parser.add_argument('--save-dir', type=str, default='params',
                     help='directory of saved models')
 parser.add_argument('--hybrid', action='store_true',
                     help='Whether to use hybrid.')
+parser.add_argument('--auto-epochs', dest='epochs', type=int, default=25,
+                    help='Auto train mode epochs.')
 opt = parser.parse_args()
 
 assert opt.batch_size % len(opt.ctx.split(",")) == 0, "Per batch on each GPU must be same."
@@ -111,10 +113,25 @@ def inf_train_gen(loader):
             yield batch
 
 
+def auto_train_setting(dataset, epochs=25, lr_rate=0.05, loss_rate=0.35):
+    epochs = epochs + 1
+    num_train_samples = len(dataset)
+    num_iterations = round(int(num_train_samples // batch_size) * epochs, -3)
+    lr_warmup_iters = round(int(num_iterations * lr_rate), -2)
+    loss_warmup_iters = round(int(num_iterations * loss_rate), -2)
+
+    logger.info('Enable Auto train mode. Following params have been reset. '
+                'num_iterations={}, lr_warmup_iters={}, loss_warmup_iters={}.'.format(
+        num_iterations, lr_warmup_iters, loss_warmup_iters))
+    return num_iterations, lr_warmup_iters, loss_warmup_iters
+
+
 ctx = [mx.gpu(int(i)) for i in opt.ctx.split(",")]
 
 batch_size = opt.batch_size
 num_iterations = opt.niters
+lr_warmup_iters = opt.lr_warmup_iters
+loss_warmup_iters = opt.loss_warmup_iters
 
 margin_s = opt.margin_s
 margin_m = opt.margin_m
@@ -122,6 +139,12 @@ margin_m = opt.margin_m
 train_set = get_recognition_dataset(opt.dataset, transform=transform_train)
 train_data = DataLoader(train_set, batch_size, shuffle=True, num_workers=opt.num_workers, last_batch='discard')
 batch_generator = inf_train_gen(train_data)
+
+if num_iterations == 0:
+    # Auto setting. You should have a large batch size to enable this(512 or larger is recommend).
+    # Epochs 25, loss warm up 35%, lr warm up 5% mixup iters 90%.
+    num_iterations, lr_warmup_iters, loss_warmup_iters = auto_train_setting(train_data._dataset,
+                                                                            epochs=opt.epochs)
 
 targets = opt.target
 val_sets = [get_recognition_dataset(name, transform=transform_test) for name in targets.split(",")]
@@ -134,7 +157,7 @@ train_net.initialize(init=mx.init.MSRAPrelu(), ctx=ctx)
 lr_period = [int(iter) for iter in opt.lr_decay_iter.split(",")]
 lr_scheduler = IterLRScheduler(mode=opt.lr_mode, baselr=opt.lr, step=lr_period,
                                step_factor=opt.lr_decay, power=2,
-                               niters=num_iterations, warmup_iters=opt.lr_warmup_iters)
+                               niters=num_iterations, warmup_iters=lr_warmup_iters)
 optimizer = 'nag'
 optimizer_params = {'wd': opt.wd, 'momentum': 0.9, 'lr_scheduler': lr_scheduler}
 if opt.dtype != 'float32':
@@ -158,7 +181,7 @@ def train():
     train_loss.reset()
     sample_time = time.time()
     for iteration in range(1, int(num_iterations + 1)):
-        Loss = SML if iteration < opt.loss_warmup_iters else AFL
+        Loss = SML if iteration < loss_warmup_iters else AFL
         batch = next(batch_generator)
         trans = gluon.utils.split_and_load(batch[0], ctx_list=ctx, batch_axis=0, even_split=False)
         labels = gluon.utils.split_and_load(batch[1], ctx_list=ctx, batch_axis=0, even_split=False)
